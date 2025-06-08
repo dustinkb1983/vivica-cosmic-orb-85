@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Settings, Mic, MicOff, Volume2, VolumeX, History } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SettingsPanel } from './SettingsPanel';
 import { ConversationHistoryPanel } from './ConversationHistoryPanel';
@@ -185,66 +185,38 @@ export const VivicaInterface = () => {
         />
       </div>
 
-      {/* VIVICA Title */}
-      <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 pointer-events-none">
-        <h1 className="text-4xl md:text-6xl font-bold tracking-[0.3em] text-white/90 drop-shadow-2xl">
+      {/* VIVICA Title - Responsive sizing */}
+      <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 pointer-events-none px-4">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-[0.2em] sm:tracking-[0.25em] md:tracking-[0.3em] text-white/90 drop-shadow-2xl text-center whitespace-nowrap">
           V I V I C A
         </h1>
-        <div className="text-center text-white/60 mt-2 text-sm md:text-base">
-          {state === 'idle' && 'Press space or tap to activate'}
+        <div className="text-center text-white/60 mt-2 text-xs sm:text-sm">
+          {state === 'idle' && (
+            <span className="block">
+              <span className="hidden sm:inline">Press space or </span>
+              <span>Tap to activate</span>
+              <span className="hidden sm:inline">, hold for settings</span>
+            </span>
+          )}
           {state === 'listening' && 'Listening...'}
           {state === 'processing' && 'Processing...'}
           {state === 'speaking' && 'Speaking...'}
         </div>
-        {messages.length > 0 && (
-          <div className="text-center text-white/40 mt-1 text-xs">
-            {messages.length} messages in history
-          </div>
-        )}
       </div>
 
-      {/* Controls */}
-      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="bg-gray-900/80 backdrop-blur-md border-gray-700 hover:bg-gray-800/90 text-white"
-          onClick={() => setShowHistory(true)}
-        >
-          <History className="w-5 h-5" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="bg-gray-900/80 backdrop-blur-md border-gray-700 hover:bg-gray-800/90 text-white"
-          onClick={() => setShowSettings(true)}
-        >
-          <Settings className="w-5 h-5" />
-        </Button>
-        
-        <Button
-          variant="ghost"
-          size="icon"
-          className={`backdrop-blur-md border-gray-700 text-white ${
-            isEnabled 
-              ? 'bg-green-500/20 hover:bg-green-500/30 border-green-500/50' 
-              : 'bg-gray-900/80 hover:bg-gray-800/90'
-          }`}
-          onClick={toggleVivica}
-        >
-          {isEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="bg-gray-900/80 backdrop-blur-md border-gray-700 hover:bg-gray-800/90 text-white"
-          onClick={() => setIsMuted(!isMuted)}
-        >
-          {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-        </Button>
-      </div>
+      {/* Minimal Settings Button - Only visible when not active */}
+      {!isEnabled && (
+        <div className="absolute top-6 right-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="bg-gray-900/30 backdrop-blur-md border-gray-700/30 hover:bg-gray-800/50 text-white/70 hover:text-white"
+            onClick={() => setShowSettings(true)}
+          >
+            <Settings className="w-5 h-5" />
+          </Button>
+        </div>
+      )}
 
       {/* Settings Panel */}
       <SettingsPanel 
@@ -254,6 +226,8 @@ export const VivicaInterface = () => {
           setShowSettings(false);
           setShowHistory(true);
         }}
+        isMuted={isMuted}
+        setIsMuted={setIsMuted}
       />
 
       {/* Conversation History Panel */}
