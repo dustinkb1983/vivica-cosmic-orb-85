@@ -1,24 +1,96 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>vivica-cosmic-orb</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0" />
+    <title>VIVICA - Voice AI Assistant</title>
+    <meta name="description" content="Sophisticated voice-activated AI assistant with mesmerizing visual interface" />
+    <meta name="author" content="VIVICA" />
+    <meta name="theme-color" content="#4F46E5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="VIVICA" />
 
-    <meta property="og:title" content="vivica-cosmic-orb" />
-    <meta property="og:description" content="Lovable Generated Project" />
+    <meta property="og:title" content="VIVICA - Voice AI Assistant" />
+    <meta property="og:description" content="Sophisticated voice-activated AI assistant with mesmerizing visual interface" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/placeholder.svg" />
+    
+    <style>
+      /* Prevent zoom on iOS */
+      html {
+        -webkit-text-size-adjust: 100%;
+        touch-action: manipulation;
+      }
+      
+      /* Loading screen */
+      #loading {
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(circle at center, rgba(147, 51, 234, 0.2), rgba(79, 70, 229, 0.4), black);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-family: system-ui, -apple-system, sans-serif;
+        z-index: 9999;
+      }
+      
+      .loading-orb {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8), rgba(147, 197, 253, 0.6), rgba(59, 130, 246, 0.4));
+        animation: pulse 2s ease-in-out infinite;
+        box-shadow: 0 0 40px rgba(59, 130, 246, 0.6);
+      }
+      
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 0.8; }
+        50% { transform: scale(1.1); opacity: 1; }
+      }
+    </style>
   </head>
 
   <body>
+    <div id="loading">
+      <div>
+        <div class="loading-orb"></div>
+        <div style="margin-top: 20px; text-align: center; font-size: 18px; font-weight: bold; letter-spacing: 0.2em;">
+          V I V I C A
+        </div>
+      </div>
+    </div>
+    
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <script>
+      // Hide loading screen when React app loads
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          const loading = document.getElementById('loading');
+          if (loading) {
+            loading.style.opacity = '0';
+            loading.style.transition = 'opacity 0.5s ease-out';
+            setTimeout(() => loading.remove(), 500);
+          }
+        }, 1000);
+      });
+      
+      // Prevent context menu
+      document.addEventListener('contextmenu', (e) => e.preventDefault());
+      
+      // Prevent text selection on touch
+      document.addEventListener('selectstart', (e) => e.preventDefault());
+    </script>
   </body>
 </html>

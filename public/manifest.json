@@ -1,0 +1,35 @@
+
+{
+  "name": "VIVICA - Voice AI Assistant",
+  "short_name": "VIVICA",
+  "description": "Sophisticated voice-activated AI assistant with mesmerizing visual interface",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "theme_color": "#4F46E5",
+  "background_color": "#000000",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/placeholder.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/placeholder.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Activate VIVICA",
+      "short_name": "Activate",
+      "description": "Start voice interaction with VIVICA",
+      "url": "/?action=activate"
+    }
+  ]
+}
