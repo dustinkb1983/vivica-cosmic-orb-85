@@ -1,12 +1,14 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Settings, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { Settings, Mic, MicOff, Volume2, VolumeX, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SettingsPanel } from './SettingsPanel';
+import { ConversationHistoryPanel } from './ConversationHistoryPanel';
 import { VivicaOrb } from './VivicaOrb';
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useOpenRouter } from '@/hooks/useOpenRouter';
+import { useConversationHistory } from '@/hooks/useConversationHistory';
 import { toast } from 'sonner';
 
 type VivicaState = 'idle' | 'listening' | 'processing' | 'speaking';
@@ -14,11 +16,21 @@ type VivicaState = 'idle' | 'listening' | 'processing' | 'speaking';
 export const VivicaInterface = () => {
   const [state, setState] = useState<VivicaState>('idle');
   const [showSettings, setShowSettings] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [isEnabled, setIsEnabled] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   const { generateResponse } = useOpenRouter();
+  const { 
+    messages, 
+    addMessage, 
+    editMessage, 
+    deleteMessage, 
+    clearHistory, 
+    getContextMessages 
+  } = useConversationHistory();
+  
   const { speak, isSpeaking, stopSpeaking } = useTextToSpeech({
     onStart: () => setState('speaking'),
     onEnd: () => {
@@ -48,10 +60,24 @@ export const VivicaInterface = () => {
     setState('processing');
     stopListening();
     
+    // Add user message to history
+    addMessage('user', text);
+    
     try {
-      const response = await generateResponse(text);
-      if (response && !isMuted) {
-        speak(response);
+      // Get conversation context for AI
+      const contextMessages = getContextMessages(8); // Last 8 messages for context
+      
+      const response = await generateResponse(text, contextMessages);
+      if (response) {
+        // Add AI response to history
+        addMessage('assistant', response);
+        
+        if (!isMuted) {
+          speak(response);
+        } else {
+          setState('listening');
+          startListening();
+        }
       } else {
         setState('listening');
         startListening();
@@ -115,10 +141,10 @@ export const VivicaInterface = () => {
       stopSpeaking();
       setState('listening');
       startListening();
-    } else if (!showSettings) {
+    } else if (!showSettings && !showHistory) {
       toggleVivica();
     }
-  }, [isSpeaking, showSettings, toggleVivica, stopSpeaking, startListening]);
+  }, [isSpeaking, showSettings, showHistory, toggleVivica, stopSpeaking, startListening]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleSpaceBar);
@@ -130,16 +156,19 @@ export const VivicaInterface = () => {
     };
   }, [handleSpaceBar, handleTouchStart]);
 
-  // Auto-hide settings on mobile after interaction
+  // Auto-hide panels on mobile after interaction
   useEffect(() => {
-    if (showSettings && window.innerWidth <= 768) {
-      const timer = setTimeout(() => setShowSettings(false), 5000);
+    if ((showSettings || showHistory) && window.innerWidth <= 768) {
+      const timer = setTimeout(() => {
+        setShowSettings(false);
+        setShowHistory(false);
+      }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [showSettings]);
+  }, [showSettings, showHistory]);
 
   return (
-    <div className="fixed inset-0 bg-gradient-radial from-purple-900/20 via-purple-950/40 to-black overflow-hidden select-none touch-none">
+    <div className="fixed inset-0 bg-black overflow-hidden select-none touch-none">
       {/* Background Canvas */}
       <canvas
         ref={canvasRef}
@@ -167,6 +196,11 @@ export const VivicaInterface = () => {
           {state === 'processing' && 'Processing...'}
           {state === 'speaking' && 'Speaking...'}
         </div>
+        {messages.length > 0 && (
+          <div className="text-center text-white/40 mt-1 text-xs">
+            {messages.length} messages in history
+          </div>
+        )}
       </div>
 
       {/* Controls */}
@@ -174,7 +208,16 @@ export const VivicaInterface = () => {
         <Button
           variant="ghost"
           size="icon"
-          className="bg-white/10 backdrop-blur-md border-white/20 hover:bg-white/20 text-white"
+          className="bg-gray-900/80 backdrop-blur-md border-gray-700 hover:bg-gray-800/90 text-white"
+          onClick={() => setShowHistory(true)}
+        >
+          <History className="w-5 h-5" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="bg-gray-900/80 backdrop-blur-md border-gray-700 hover:bg-gray-800/90 text-white"
           onClick={() => setShowSettings(true)}
         >
           <Settings className="w-5 h-5" />
@@ -183,10 +226,10 @@ export const VivicaInterface = () => {
         <Button
           variant="ghost"
           size="icon"
-          className={`backdrop-blur-md border-white/20 text-white ${
+          className={`backdrop-blur-md border-gray-700 text-white ${
             isEnabled 
-              ? 'bg-green-500/20 hover:bg-green-500/30' 
-              : 'bg-white/10 hover:bg-white/20'
+              ? 'bg-green-500/20 hover:bg-green-500/30 border-green-500/50' 
+              : 'bg-gray-900/80 hover:bg-gray-800/90'
           }`}
           onClick={toggleVivica}
         >
@@ -196,7 +239,7 @@ export const VivicaInterface = () => {
         <Button
           variant="ghost"
           size="icon"
-          className="bg-white/10 backdrop-blur-md border-white/20 hover:bg-white/20 text-white"
+          className="bg-gray-900/80 backdrop-blur-md border-gray-700 hover:bg-gray-800/90 text-white"
           onClick={() => setIsMuted(!isMuted)}
         >
           {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
@@ -206,7 +249,21 @@ export const VivicaInterface = () => {
       {/* Settings Panel */}
       <SettingsPanel 
         isOpen={showSettings} 
-        onClose={() => setShowSettings(false)} 
+        onClose={() => setShowSettings(false)}
+        onOpenHistory={() => {
+          setShowSettings(false);
+          setShowHistory(true);
+        }}
+      />
+
+      {/* Conversation History Panel */}
+      <ConversationHistoryPanel
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        messages={messages}
+        onEditMessage={editMessage}
+        onDeleteMessage={deleteMessage}
+        onClearHistory={clearHistory}
       />
 
       {/* Debug Info */}
@@ -215,7 +272,8 @@ export const VivicaInterface = () => {
           State: {state}<br/>
           Listening: {isListening ? 'Yes' : 'No'}<br/>
           Speaking: {isSpeaking ? 'Yes' : 'No'}<br/>
-          Enabled: {isEnabled ? 'Yes' : 'No'}
+          Enabled: {isEnabled ? 'Yes' : 'No'}<br/>
+          Messages: {messages.length}
         </div>
       )}
     </div>

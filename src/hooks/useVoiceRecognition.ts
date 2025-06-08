@@ -8,6 +8,14 @@ interface UseVoiceRecognitionOptions {
   continuous?: boolean;
 }
 
+// Extend the Window interface for TypeScript
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
 export const useVoiceRecognition = ({
   onResult,
   onError,
@@ -16,7 +24,7 @@ export const useVoiceRecognition = ({
 }: UseVoiceRecognitionOptions) => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   const initializeRecognition = useCallback(() => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -37,7 +45,7 @@ export const useVoiceRecognition = ({
       setIsListening(true);
     };
 
-    recognition.onresult = (event) => {
+    recognition.onresult = (event: any) => {
       let finalTranscript = '';
       let interimTranscript = '';
 
@@ -58,7 +66,7 @@ export const useVoiceRecognition = ({
       }
     };
 
-    recognition.onerror = (event) => {
+    recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
       setIsListening(false);
       onError(event.error);
@@ -114,11 +122,3 @@ export const useVoiceRecognition = ({
     isSupported: 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window
   };
 };
-
-// Extend the Window interface for TypeScript
-declare global {
-  interface Window {
-    SpeechRecognition: any;
-    webkitSpeechRecognition: any;
-  }
-}

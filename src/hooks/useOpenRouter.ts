@@ -2,11 +2,20 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 
+interface Message {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
 export const useOpenRouter = () => {
-  const generateResponse = useCallback(async (message: string): Promise<string | null> => {
+  const generateResponse = useCallback(async (
+    message: string, 
+    contextMessages: Message[] = []
+  ): Promise<string | null> => {
     const apiKey = localStorage.getItem('vivica_api_key');
     const model = localStorage.getItem('vivica_model') || 'deepseek/deepseek-chat';
     const systemPrompt = localStorage.getItem('vivica_system_prompt') || 'You are VIVICA, a sophisticated AI assistant. Be helpful, concise, and engaging in your responses.';
+    const temperature = parseFloat(localStorage.getItem('vivica_temperature') || '0.7');
 
     if (!apiKey) {
       toast.error('Please set your OpenRouter API key in settings');
@@ -14,6 +23,19 @@ export const useOpenRouter = () => {
     }
 
     try {
+      // Build messages array with system prompt, context, and current message
+      const messages: Message[] = [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        ...contextMessages,
+        {
+          role: 'user',
+          content: message
+        }
+      ];
+
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -24,17 +46,8 @@ export const useOpenRouter = () => {
         },
         body: JSON.stringify({
           model: model,
-          messages: [
-            {
-              role: 'system',
-              content: systemPrompt
-            },
-            {
-              role: 'user',
-              content: message
-            }
-          ],
-          temperature: 0.7,
+          messages: messages,
+          temperature: temperature,
           max_tokens: 500,
           stream: false
         })

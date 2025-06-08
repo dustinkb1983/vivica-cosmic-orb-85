@@ -9,7 +9,8 @@ registerServiceWorker();
 
 // Prevent zooming on mobile
 document.addEventListener('touchmove', (e) => {
-  if (e.scale !== 1) {
+  // Check if this is a pinch gesture by looking at the touches
+  if (e.touches.length > 1) {
     e.preventDefault();
   }
 }, { passive: false });
