@@ -95,7 +95,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" data-settings-panel>
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-950/95 backdrop-blur-md border-gray-800 text-white">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-gray-800">
           <div>

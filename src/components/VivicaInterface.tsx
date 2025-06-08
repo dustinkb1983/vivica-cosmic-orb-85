@@ -117,6 +117,17 @@ export const VivicaInterface = () => {
   }, [showSettings, toggleVivica]);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
+    // Don't handle touch events if settings or history panels are open
+    if (showSettings || showHistory) {
+      return;
+    }
+    
+    // Check if touch is inside a settings panel (in case the state hasn't updated yet)
+    const target = e.target as Element;
+    if (target.closest('[data-settings-panel]') || target.closest('[data-history-panel]')) {
+      return;
+    }
+    
     if (e.touches.length === 1) {
       const touchDuration = setTimeout(() => {
         if ('vibrate' in navigator) {
@@ -134,14 +145,19 @@ export const VivicaInterface = () => {
       document.addEventListener('touchend', cleanup);
       document.addEventListener('touchmove', cleanup);
     }
-  }, []);
+  }, [showSettings, showHistory]);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
+    // Don't handle clicks if panels are open
+    if (showSettings || showHistory) {
+      return;
+    }
+    
     if (isSpeaking) {
       stopSpeaking();
       setState('listening');
       startListening();
-    } else if (!showSettings && !showHistory) {
+    } else {
       toggleVivica();
     }
   }, [isSpeaking, showSettings, showHistory, toggleVivica, stopSpeaking, startListening]);
@@ -162,7 +178,7 @@ export const VivicaInterface = () => {
       const timer = setTimeout(() => {
         setShowSettings(false);
         setShowHistory(false);
-      }, 5000);
+      }, 10000); // Increased from 5s to 10s to give more time for interaction
       return () => clearTimeout(timer);
     }
   }, [showSettings, showHistory]);
