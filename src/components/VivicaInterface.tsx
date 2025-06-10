@@ -20,6 +20,7 @@ export const VivicaInterface = () => {
   const [isEnabled, setIsEnabled] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isProcessingRef = useRef(false);
   
   const { generateResponse } = useOpenRouter();
   const { 
@@ -32,10 +33,18 @@ export const VivicaInterface = () => {
   } = useConversationHistory();
   
   const { speak, isSpeaking, stopSpeaking } = useTextToSpeech({
-    onStart: () => setState('speaking'),
+    onStart: () => {
+      console.log('TTS started');
+      setState('speaking');
+    },
     onEnd: () => {
-      setState('listening');
-      startListening();
+      console.log('TTS ended, returning to listening');
+      if (isEnabled && !isProcessingRef.current) {
+        setState('listening');
+        setTimeout(() => {
+          startListening();
+        }, 500); // Small delay to ensure clean transition
+      }
     }
   });
   
@@ -49,54 +58,85 @@ export const VivicaInterface = () => {
     onResult: handleVoiceInput,
     onError: (error) => {
       console.error('Voice recognition error:', error);
-      setState('idle');
+      isProcessingRef.current = false;
+      if (isEnabled) {
+        setState('listening');
+        setTimeout(() => {
+          startListening();
+        }, 1000);
+      } else {
+        setState('idle');
+      }
     }
   });
 
   async function handleVoiceInput(text: string) {
-    if (!text.trim()) return;
+    if (!text.trim() || isProcessingRef.current) {
+      console.log('Ignoring voice input:', { text: text.trim(), isProcessing: isProcessingRef.current });
+      return;
+    }
     
-    console.log('Voice input received:', text);
+    console.log('Processing voice input:', text);
+    isProcessingRef.current = true;
     setState('processing');
     stopListening();
+    resetTranscript();
     
     // Add user message to history
     addMessage('user', text);
     
     try {
       // Get conversation context for AI
-      const contextMessages = getContextMessages(8); // Last 8 messages for context
+      const contextMessages = getContextMessages(8);
       
       const response = await generateResponse(text, contextMessages);
       if (response) {
+        console.log('AI response received:', response);
         // Add AI response to history
         addMessage('assistant', response);
         
         if (!isMuted) {
           speak(response);
+          // TTS onEnd callback will handle returning to listening
         } else {
+          isProcessingRef.current = false;
           setState('listening');
-          startListening();
+          setTimeout(() => {
+            startListening();
+          }, 500);
         }
       } else {
+        console.log('No AI response, returning to listening');
+        isProcessingRef.current = false;
         setState('listening');
-        startListening();
+        setTimeout(() => {
+          startListening();
+        }, 500);
       }
     } catch (error) {
       console.error('AI response error:', error);
       toast.error('Failed to generate response');
+      isProcessingRef.current = false;
       setState('listening');
-      startListening();
+      setTimeout(() => {
+        startListening();
+      }, 1000);
     }
   }
 
   const toggleVivica = useCallback(() => {
     if (!isEnabled) {
+      console.log('Activating VIVICA');
+      isProcessingRef.current = false;
       setState('listening');
       setIsEnabled(true);
-      startListening();
+      setTimeout(() => {
+        startListening();
+      }, 500);
       toast.success('VIVICA activated');
     } else {
+      console.log('Deactivating VIVICA');
+      isProcessingRef.current = false;
       setState('idle');
       setIsEnabled(false);
       stopListening();
@@ -122,7 +162,7 @@ export const VivicaInterface = () => {
       return;
     }
     
-    // Check if touch is inside a settings panel (in case the state hasn't updated yet)
+    // Check if touch is inside a panel
     const target = e.target as Element;
     if (target.closest('[data-settings-panel]') || target.closest('[data-history-panel]')) {
       return;
@@ -153,10 +193,20 @@ export const VivicaInterface = () => {
       return;
     }
     
+    // Check if click is inside a panel
+    const target = e.target as Element;
+    if (target.closest('[data-settings-panel]') || target.closest('[data-history-panel]')) {
+      return;
+    }
+    
     if (isSpeaking) {
+      console.log('Stopping speech and returning to listening');
       stopSpeaking();
+      isProcessingRef.current = false;
       setState('listening');
-      startListening();
+      setTimeout(() => {
+        startListening();
+      }, 500);
     } else {
       toggleVivica();
     }
@@ -178,10 +228,17 @@ export const VivicaInterface = () => {
       const timer = setTimeout(() => {
         setShowSettings(false);
         setShowHistory(false);
-      }, 10000); // Increased from 5s to 10s to give more time for interaction
+      }, 15000); // Increased to 15s for better usability
       return () => clearTimeout(timer);
     }
   }, [showSettings, showHistory]);
+
+  // Clean up processing state when component unmounts
+  useEffect(() => {
+    return () => {
+      isProcessingRef.current = false;
+    };
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-black overflow-hidden select-none touch-none">
@@ -202,15 +259,15 @@ export const VivicaInterface = () => {
       </div>
 
       {/* VIVICA Title - Responsive sizing */}
-      <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 pointer-events-none px-4">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-[0.2em] sm:tracking-[0.25em] md:tracking-[0.3em] text-white/90 drop-shadow-2xl text-center whitespace-nowrap">
+      <div className="absolute bottom-12 sm:bottom-16 left-1/2 transform -translate-x-1/2 pointer-events-none px-4 max-w-full">
+        <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold tracking-[0.15em] sm:tracking-[0.2em] md:tracking-[0.25em] text-white/90 drop-shadow-2xl text-center">
           V I V I C A
         </h1>
-        <div className="text-center text-white/60 mt-2 text-xs sm:text-sm">
+        <div className="text-center text-white/60 mt-1 sm:mt-2 text-xs sm:text-sm px-2">
           {state === 'idle' && (
             <span className="block">
-              <span className="hidden sm:inline">Press space or </span>
-              <span>Tap to activate</span>
+              <span className="hidden sm:inline">Space or </span>
+              <span>tap to activate</span>
               <span className="hidden sm:inline">, hold for settings</span>
             </span>
           )}
@@ -219,20 +276,6 @@ export const VivicaInterface = () => {
           {state === 'speaking' && 'Speaking...'}
         </div>
       </div>
-
-      {/* Minimal Settings Button - Only visible when not active */}
-      {!isEnabled && (
-        <div className="absolute top-6 right-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="bg-gray-900/30 backdrop-blur-md border-gray-700/30 hover:bg-gray-800/50 text-white/70 hover:text-white"
-            onClick={() => setShowSettings(true)}
-          >
-            <Settings className="w-5 h-5" />
-          </Button>
-        </div>
-      )}
 
       {/* Settings Panel */}
       <SettingsPanel 
@@ -263,6 +306,7 @@ export const VivicaInterface = () => {
           Listening: {isListening ? 'Yes' : 'No'}<br/>
           Speaking: {isSpeaking ? 'Yes' : 'No'}<br/>
           Enabled: {isEnabled ? 'Yes' : 'No'}<br/>
+          Processing: {isProcessingRef.current ? 'Yes' : 'No'}<br/>
           Messages: {messages.length}
         </div>
       )}

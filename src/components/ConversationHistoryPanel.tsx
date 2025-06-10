@@ -1,10 +1,15 @@
-
-import React, { useState } from 'react';
-import { X, Edit, Trash2, MessageSquare } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { ConversationMessage } from '@/hooks/useConversationHistory';
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+
+export interface ConversationMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+}
 
 interface ConversationHistoryPanelProps {
   isOpen: boolean;
@@ -23,131 +28,85 @@ export const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> =
   onDeleteMessage,
   onClearHistory
 }) => {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editedContent, setEditedContent] = useState<string>('');
 
-  const handleEdit = (message: ConversationMessage) => {
-    setEditingId(message.id);
-    setEditContent(message.content);
-  };
+  const startEditing = useCallback((id: string, content: string) => {
+    setEditingMessageId(id);
+    setEditedContent(content);
+  }, []);
 
-  const saveEdit = () => {
-    if (editingId) {
-      onEditMessage(editingId, editContent);
-      setEditingId(null);
-      setEditContent('');
+  const cancelEditing = useCallback(() => {
+    setEditingMessageId(null);
+    setEditedContent('');
+  }, []);
+
+  const saveEditedMessage = useCallback(() => {
+    if (editingMessageId) {
+      onEditMessage(editingMessageId, editedContent);
+      cancelEditing();
     }
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditContent('');
-  };
+  }, [editingMessageId, editedContent, onEditMessage, cancelEditing]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl h-[80vh] bg-gray-950/95 backdrop-blur-md border-gray-800 text-white flex flex-col">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-gray-800">
-          <div>
-            <CardTitle className="text-xl font-bold flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" />
-              Conversation History
-            </CardTitle>
-            <CardDescription className="text-gray-400">
-              {messages.length} messages
-            </CardDescription>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="text-gray-400 hover:text-white hover:bg-gray-800"
-          >
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" data-history-panel>
+      <div className="relative bg-gray-900 rounded-lg shadow-lg max-w-2xl w-full h-4/5 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-700 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-white">Conversation History</h2>
+          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-gray-100" onClick={onClose}>
             <X className="w-5 h-5" />
           </Button>
-        </CardHeader>
-        
-        <CardContent className="flex-1 overflow-hidden flex flex-col p-4">
-          <div className="flex justify-end mb-4">
-            <Button
-              onClick={onClearHistory}
-              variant="outline"
-              size="sm"
-              className="border-red-800 text-red-400 hover:bg-red-900/20"
-            >
-              Clear All History
-            </Button>
-          </div>
+        </div>
 
-          <div className="flex-1 overflow-y-auto space-y-3">
-            {messages.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">
-                No conversation history yet
-              </div>
-            ) : (
-              messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`p-3 rounded-lg border ${
-                    message.role === 'user'
-                      ? 'bg-blue-950/20 border-blue-800/30'
-                      : 'bg-purple-950/20 border-purple-800/30'
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <span className={`text-xs font-medium ${
-                      message.role === 'user' ? 'text-blue-400' : 'text-purple-400'
-                    }`}>
-                      {message.role === 'user' ? 'You' : 'VIVICA'}
+        {/* Messages */}
+        <div className="p-4 overflow-y-auto flex-grow">
+          {messages.length === 0 ? (
+            <div className="text-gray-500 text-center">No messages in history.</div>
+          ) : (
+            <ul className="space-y-2">
+              {messages.map(msg => (
+                <li key={msg.id} className="px-4 py-2 rounded-lg" style={{ backgroundColor: msg.role === 'user' ? '#2D3748' : '#4A5568' }}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium" style={{ color: msg.role === 'user' ? '#BEE3F8' : '#F6AD55' }}>
+                      {msg.role === 'user' ? 'You:' : 'VIVICA:'}
                     </span>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-gray-500 hover:text-white"
-                        onClick={() => handleEdit(message)}
-                      >
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-gray-500 hover:text-red-400"
-                        onClick={() => onDeleteMessage(message.id)}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                    <div className="flex space-x-2">
+                      {editingMessageId === msg.id ? (
+                        <>
+                          <Button variant="secondary" size="sm" onClick={saveEditedMessage}>Save</Button>
+                          <Button variant="ghost" size="sm" onClick={cancelEditing}>Cancel</Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button variant="ghost" size="sm" onClick={() => startEditing(msg.id, msg.content)}>Edit</Button>
+                          <Button variant="destructive" size="sm" onClick={() => onDeleteMessage(msg.id)}>Delete</Button>
+                        </>
+                      )}
                     </div>
                   </div>
-                  
-                  {editingId === message.id ? (
-                    <div className="space-y-2">
-                      <Textarea
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        className="bg-gray-900/50 border-gray-700 text-white resize-none"
-                        rows={3}
-                      />
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={saveEdit}>Save</Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>Cancel</Button>
-                      </div>
-                    </div>
+                  {editingMessageId === msg.id ? (
+                    <Textarea
+                      value={editedContent}
+                      onChange={(e) => setEditedContent(e.target.value)}
+                      className="w-full bg-gray-800 border-gray-600 text-white rounded-md p-2"
+                    />
                   ) : (
-                    <p className="text-sm text-gray-200">{message.content}</p>
+                    <p className="text-sm text-gray-300">{msg.content}</p>
                   )}
-                  
-                  <div className="text-xs text-gray-500 mt-2">
-                    {new Date(message.timestamp).toLocaleString()}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="px-6 py-4 border-t border-gray-700">
+          <Button variant="destructive" className="w-full" onClick={onClearHistory}>Clear Conversation History</Button>
+        </div>
+      </div>
     </div>
   );
 };
