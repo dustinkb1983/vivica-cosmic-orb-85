@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef } from 'react';
 
 interface UseTextToSpeechOptions {
@@ -10,6 +9,20 @@ interface UseTextToSpeechOptions {
   volume?: number;
   voice?: SpeechSynthesisVoice | null;
 }
+
+const filterEmojis = (text: string): string => {
+  // Remove emojis and other non-speech characters
+  return text
+    .replace(/[\u{1F600}-\u{1F64F}]/gu, '') // Emoticons
+    .replace(/[\u{1F300}-\u{1F5FF}]/gu, '') // Misc Symbols and Pictographs
+    .replace(/[\u{1F680}-\u{1F6FF}]/gu, '') // Transport and Map
+    .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '') // Regional country flags
+    .replace(/[\u{2600}-\u{26FF}]/gu, '')   // Misc symbols
+    .replace(/[\u{2700}-\u{27BF}]/gu, '')   // Dingbats
+    .replace(/[\u{1F900}-\u{1F9FF}]/gu, '') // Supplemental Symbols and Pictographs
+    .replace(/[\u{1FA70}-\u{1FAFF}]/gu, '') // Symbols and Pictographs Extended-A
+    .trim();
+};
 
 export const useTextToSpeech = ({
   onStart,
@@ -27,10 +40,14 @@ export const useTextToSpeech = ({
   const speak = useCallback((text: string) => {
     if (!text.trim()) return;
 
+    // Filter out emojis before speaking
+    const filteredText = filterEmojis(text);
+    if (!filteredText.trim()) return;
+
     // Stop any current speech
     speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(filteredText);
     utteranceRef.current = utterance;
 
     // Configure utterance

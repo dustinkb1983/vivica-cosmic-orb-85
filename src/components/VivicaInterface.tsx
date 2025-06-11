@@ -1,6 +1,5 @@
-
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Settings } from 'lucide-react';
+import { Settings, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SettingsPanel } from './SettingsPanel';
 import { ConversationHistoryPanel } from './ConversationHistoryPanel';
@@ -38,12 +37,28 @@ export const VivicaInterface = () => {
       setState('speaking');
     },
     onEnd: () => {
-      console.log('TTS ended, returning to listening');
-      if (isEnabled && !isProcessingRef.current) {
+      console.log('TTS ended, returning to listening mode');
+      isProcessingRef.current = false;
+      if (isEnabled) {
+        setState('listening');
+        setTimeout(() => {
+          console.log('Restarting listening after speech ended');
+          startListening();
+        }, 500);
+      } else {
+        setState('idle');
+      }
+    },
+    onError: (error) => {
+      console.error('TTS error:', error);
+      isProcessingRef.current = false;
+      if (isEnabled) {
         setState('listening');
         setTimeout(() => {
           startListening();
-        }, 500); // Small delay to ensure clean transition
+        }, 1000);
+      } else {
+        setState('idle');
       }
     }
   });
@@ -59,9 +74,10 @@ export const VivicaInterface = () => {
     onError: (error) => {
       console.error('Voice recognition error:', error);
       isProcessingRef.current = false;
-      if (isEnabled) {
+      if (isEnabled && error !== 'no-speech') {
         setState('listening');
         setTimeout(() => {
+          console.log('Restarting listening after voice error');
           startListening();
         }, 1000);
       } else {
@@ -96,9 +112,11 @@ export const VivicaInterface = () => {
         addMessage('assistant', response);
         
         if (!isMuted) {
+          console.log('Speaking AI response');
           speak(response);
           // TTS onEnd callback will handle returning to listening
         } else {
+          console.log('Muted mode - returning to listening without speaking');
           isProcessingRef.current = false;
           setState('listening');
           setTimeout(() => {
@@ -203,14 +221,18 @@ export const VivicaInterface = () => {
       console.log('Stopping speech and returning to listening');
       stopSpeaking();
       isProcessingRef.current = false;
-      setState('listening');
-      setTimeout(() => {
-        startListening();
-      }, 500);
+      if (isEnabled) {
+        setState('listening');
+        setTimeout(() => {
+          startListening();
+        }, 500);
+      } else {
+        setState('idle');
+      }
     } else {
       toggleVivica();
     }
-  }, [isSpeaking, showSettings, showHistory, toggleVivica, stopSpeaking, startListening]);
+  }, [isSpeaking, showSettings, showHistory, toggleVivica, stopSpeaking, startListening, isEnabled]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleSpaceBar);
