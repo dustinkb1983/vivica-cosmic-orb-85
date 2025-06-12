@@ -83,7 +83,8 @@ export const VivicaInterface = () => {
       } else {
         setState('idle');
       }
-    }
+    },
+    speechTimeout: 1500 // Wait 1.5 seconds after speech ends before processing
   });
 
   async function handleVoiceInput(text: string) {
@@ -92,7 +93,7 @@ export const VivicaInterface = () => {
       return;
     }
     
-    console.log('Processing voice input:', text);
+    console.log('Processing complete voice input:', text);
     isProcessingRef.current = true;
     setState('processing');
     stopListening();
@@ -245,15 +246,15 @@ export const VivicaInterface = () => {
   }, [handleSpaceBar, handleTouchStart]);
 
   // Auto-hide panels on mobile after interaction
-  useEffect(() => {
-    if ((showSettings || showHistory) && window.innerWidth <= 768) {
-      const timer = setTimeout(() => {
-        setShowSettings(false);
-        setShowHistory(false);
-      }, 15000); // Increased to 15s for better usability
-      return () => clearTimeout(timer);
-    }
-  }, [showSettings, showHistory]);
+  // useEffect(() => {
+  //   if ((showSettings || showHistory) && window.innerWidth <= 768) {
+  //     const timer = setTimeout(() => {
+  //       setShowSettings(false);
+  //       setShowHistory(false);
+  //     }, 15000); // Increased to 15s for better usability
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [showSettings, showHistory]);
 
   // Clean up processing state when component unmounts
   useEffect(() => {

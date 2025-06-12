@@ -90,13 +90,27 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     if (e.key === 'Escape') {
       onClose();
     }
+    // Allow all other key events to propagate normally
+    e.stopPropagation();
+  };
+
+  const handlePanelClick = (e: React.MouseEvent) => {
+    // Prevent clicks inside the panel from bubbling up
+    e.stopPropagation();
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" data-settings-panel>
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-950/95 backdrop-blur-md border-gray-800 text-white">
+    <div 
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" 
+      data-settings-panel
+      onClick={onClose}
+    >
+      <Card 
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-950/95 backdrop-blur-md border-gray-800 text-white"
+        onClick={handlePanelClick}
+      >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-gray-800">
           <div>
             <CardTitle className="text-xl font-bold">VIVICA Settings</CardTitle>
@@ -353,6 +367,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   onChange={(e) => setSystemPrompt(e.target.value)}
                   rows={4}
                   className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 resize-none"
+                  style={{ 
+                    userSelect: 'text',
+                    WebkitUserSelect: 'text',
+                    MozUserSelect: 'text'
+                  }}
+                  onCopy={(e) => e.stopPropagation()}
+                  onCut={(e) => e.stopPropagation()}
+                  onPaste={(e) => e.stopPropagation()}
+                  onSelect={(e) => e.stopPropagation()}
                 />
 
                 {/* Add Custom Prompt */}

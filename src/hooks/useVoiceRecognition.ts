@@ -6,6 +6,7 @@ interface UseVoiceRecognitionOptions {
   onError: (error: any) => void;
   language?: string;
   continuous?: boolean;
+  speechTimeout?: number;
 }
 
 // Extend the Window interface for TypeScript
@@ -20,12 +21,15 @@ export const useVoiceRecognition = ({
   onResult,
   onError,
   language = 'en-US',
-  continuous = true
+  continuous = true,
+  speechTimeout = 1500
 }: UseVoiceRecognitionOptions) => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<any>(null);
   const isInitializedRef = useRef(false);
+  const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const finalTranscriptRef = useRef('');
 
   const initializeRecognition = useCallback(() => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -44,6 +48,7 @@ export const useVoiceRecognition = ({
     recognition.onstart = () => {
       console.log('Voice recognition started');
       setIsListening(true);
+      finalTranscriptRef.current = '';
     };
 
     recognition.onresult = (event: any) => {
@@ -59,19 +64,41 @@ export const useVoiceRecognition = ({
         }
       }
 
+      // Update the current transcript display
       const currentTranscript = finalTranscript || interimTranscript;
       setTranscript(currentTranscript);
 
+      // If we have a final result, accumulate it
       if (finalTranscript && finalTranscript.trim()) {
-        console.log('Final transcript:', finalTranscript);
-        setTranscript('');
-        onResult(finalTranscript.trim());
+        finalTranscriptRef.current += (finalTranscriptRef.current ? ' ' : '') + finalTranscript.trim();
+        console.log('Accumulated transcript:', finalTranscriptRef.current);
+        
+        // Clear any existing timeout
+        if (speechTimeoutRef.current) {
+          clearTimeout(speechTimeoutRef.current);
+        }
+        
+        // Set a timeout to process the accumulated speech after a pause
+        speechTimeoutRef.current = setTimeout(() => {
+          if (finalTranscriptRef.current.trim()) {
+            console.log('Processing final accumulated transcript:', finalTranscriptRef.current);
+            onResult(finalTranscriptRef.current.trim());
+            finalTranscriptRef.current = '';
+            setTranscript('');
+          }
+        }, speechTimeout);
       }
     };
 
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
       setIsListening(false);
+      
+      // Clear any pending timeouts
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+        speechTimeoutRef.current = null;
+      }
       
       // Don't treat 'no-speech' as a real error - just restart
       if (event.error === 'no-speech') {
@@ -86,10 +113,16 @@ export const useVoiceRecognition = ({
       console.log('Voice recognition ended');
       setIsListening(false);
       setTranscript('');
+      
+      // Clear any pending timeouts
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+        speechTimeoutRef.current = null;
+      }
     };
 
     return recognition;
-  }, [onResult, onError, language, continuous]);
+  }, [onResult, onError, language, continuous, speechTimeout]);
 
   const startListening = useCallback(() => {
     console.log('startListening called, current state:', { isListening, isInitialized: isInitializedRef.current });
@@ -102,6 +135,7 @@ export const useVoiceRecognition = ({
     if (recognitionRef.current && !isListening) {
       try {
         console.log('Actually starting recognition...');
+        finalTranscriptRef.current = '';
         recognitionRef.current.start();
       } catch (error) {
         console.error('Error starting recognition:', error);
@@ -124,10 +158,21 @@ export const useVoiceRecognition = ({
         console.error('Error stopping recognition:', error);
       }
     }
+    
+    // Clear any pending timeouts
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+      speechTimeoutRef.current = null;
+    }
   }, [isListening]);
 
   const resetTranscript = useCallback(() => {
     setTranscript('');
+    finalTranscriptRef.current = '';
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+      speechTimeoutRef.current = null;
+    }
   }, []);
 
   useEffect(() => {
@@ -138,6 +183,10 @@ export const useVoiceRecognition = ({
         } catch (error) {
           console.error('Error cleaning up recognition:', error);
         }
+      }
+      
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
       }
     };
   }, []);
