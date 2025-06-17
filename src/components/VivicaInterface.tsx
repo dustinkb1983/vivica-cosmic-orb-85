@@ -44,7 +44,7 @@ export const VivicaInterface = () => {
         setTimeout(() => {
           console.log('Restarting listening after speech ended');
           startListening();
-        }, 500);
+        }, 1000);
       } else {
         setState('idle');
       }
@@ -74,26 +74,36 @@ export const VivicaInterface = () => {
     onError: (error) => {
       console.error('Voice recognition error:', error);
       isProcessingRef.current = false;
-      if (isEnabled && error !== 'no-speech') {
+      
+      // For 'no-speech' errors, just restart listening if enabled
+      if (error === 'no-speech' && isEnabled) {
         setState('listening');
         setTimeout(() => {
-          console.log('Restarting listening after voice error');
+          console.log('Restarting listening after no-speech');
           startListening();
         }, 1000);
+      } else if (isEnabled && error !== 'aborted') {
+        // For other errors, show toast and restart
+        toast.error(`Voice recognition error: ${error}`);
+        setState('listening');
+        setTimeout(() => {
+          console.log('Restarting listening after error');
+          startListening();
+        }, 2000);
       } else {
         setState('idle');
       }
     },
-    speechTimeout: 1500 // Wait 1.5 seconds after speech ends before processing
+    speechTimeout: 1500
   });
 
   async function handleVoiceInput(text: string) {
-    if (!text.trim() || isProcessingRef.current) {
-      console.log('Ignoring voice input:', { text: text.trim(), isProcessing: isProcessingRef.current });
+    if (!text.trim() || isProcessingRef.current || !isEnabled) {
+      console.log('Ignoring voice input:', { text: text.trim(), isProcessing: isProcessingRef.current, isEnabled });
       return;
     }
     
-    console.log('Processing complete voice input:', text);
+    console.log('Processing voice input:', text);
     isProcessingRef.current = true;
     setState('processing');
     stopListening();
@@ -107,7 +117,7 @@ export const VivicaInterface = () => {
       const contextMessages = getContextMessages(8);
       
       const response = await generateResponse(text, contextMessages);
-      if (response) {
+      if (response && isEnabled) {
         console.log('AI response received:', response);
         // Add AI response to history
         addMessage('assistant', response);
@@ -125,21 +135,29 @@ export const VivicaInterface = () => {
           }, 500);
         }
       } else {
-        console.log('No AI response, returning to listening');
+        console.log('No AI response or disabled, returning to listening');
         isProcessingRef.current = false;
-        setState('listening');
-        setTimeout(() => {
-          startListening();
-        }, 500);
+        if (isEnabled) {
+          setState('listening');
+          setTimeout(() => {
+            startListening();
+          }, 500);
+        } else {
+          setState('idle');
+        }
       }
     } catch (error) {
       console.error('AI response error:', error);
       toast.error('Failed to generate response');
       isProcessingRef.current = false;
-      setState('listening');
-      setTimeout(() => {
-        startListening();
-      }, 1000);
+      if (isEnabled) {
+        setState('listening');
+        setTimeout(() => {
+          startListening();
+        }, 1000);
+      } else {
+        setState('idle');
+      }
     }
   }
 
@@ -160,9 +178,10 @@ export const VivicaInterface = () => {
       setIsEnabled(false);
       stopListening();
       stopSpeaking();
+      resetTranscript();
       toast.info('VIVICA deactivated');
     }
-  }, [isEnabled, startListening, stopListening, stopSpeaking]);
+  }, [isEnabled, startListening, stopListening, stopSpeaking, resetTranscript]);
 
   const handleSpaceBar = useCallback((e: KeyboardEvent) => {
     if (e.code === 'Space' && e.type === 'keydown') {
@@ -297,6 +316,11 @@ export const VivicaInterface = () => {
           {state === 'listening' && 'Listening...'}
           {state === 'processing' && 'Processing...'}
           {state === 'speaking' && 'Speaking...'}
+          {transcript && (
+            <div className="mt-2 text-white/80 text-xs italic">
+              "{transcript}"
+            </div>
+          )}
         </div>
       </div>
 
@@ -330,7 +354,8 @@ export const VivicaInterface = () => {
           Speaking: {isSpeaking ? 'Yes' : 'No'}<br/>
           Enabled: {isEnabled ? 'Yes' : 'No'}<br/>
           Processing: {isProcessingRef.current ? 'Yes' : 'No'}<br/>
-          Messages: {messages.length}
+          Messages: {messages.length}<br/>
+          Transcript: {transcript ? `"${transcript}"` : 'None'}
         </div>
       )}
     </div>
