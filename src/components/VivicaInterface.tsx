@@ -9,6 +9,8 @@ import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useOpenRouter } from '@/hooks/useOpenRouter';
 import { useConversationHistory } from '@/hooks/useConversationHistory';
 import { toast } from 'sonner';
+import { useIntentRecognition } from '@/hooks/useIntentRecognition';
+import { IntentHandlers } from '@/services/intentHandlers';
 
 type VivicaState = 'idle' | 'listening' | 'processing' | 'speaking';
 
@@ -93,7 +95,6 @@ export const VivicaInterface = () => {
       if (isEnabled) {
         setState('listening');
         setTimeout(() => {
-          console.log('Restarting listening after error');
           startListening();
         }, 2000);
       } else {
@@ -104,6 +105,8 @@ export const VivicaInterface = () => {
     hardTimeout: 30000
   });
 
+  const { detectIntent } = useIntentRecognition();
+  
   async function handleVoiceInput(text: string) {
     if (!text.trim() || isProcessingRef.current || !isEnabled) {
       console.log('Ignoring voice input:', { text: text.trim(), isProcessing: isProcessingRef.current, isEnabled });
@@ -120,10 +123,41 @@ export const VivicaInterface = () => {
     addMessage('user', text);
     
     try {
-      // Get conversation context for AI
-      const contextMessages = getContextMessages(8);
+      // Detect intent
+      const intent = detectIntent(text);
+      let response = '';
       
-      const response = await generateResponse(text, contextMessages);
+      if (intent !== 'general') {
+        // Handle special intents
+        const weatherApiKey = localStorage.getItem('vivica_weather_api_key');
+        const newsApiKey = localStorage.getItem('vivica_news_api_key');
+        
+        if (weatherApiKey || newsApiKey) {
+          const handlers = new IntentHandlers(weatherApiKey || '', newsApiKey || '');
+          
+          switch (intent) {
+            case 'weather':
+              response = await handlers.handleWeather(text);
+              break;
+            case 'news':
+              response = await handlers.handleNews();
+              break;
+            case 'traffic':
+              response = await handlers.handleTraffic(text);
+              break;
+            case 'sports':
+              response = await handlers.handleSports(text);
+              break;
+          }
+        }
+      }
+      
+      // If no special intent response, use AI
+      if (!response) {
+        const contextMessages = getContextMessages(8);
+        response = await generateResponse(text, contextMessages);
+      }
+      
       if (response && isEnabled) {
         console.log('AI response received:', response);
         // Add AI response to history
@@ -377,6 +411,10 @@ export const VivicaInterface = () => {
       <ConversationHistoryPanel
         isOpen={showHistory}
         onClose={() => setShowHistory(false)}
+        onBackToSettings={() => {
+          setShowHistory(false);
+          setShowSettings(true);
+        }}
         messages={messages}
         onEditMessage={editMessage}
         onDeleteMessage={deleteMessage}

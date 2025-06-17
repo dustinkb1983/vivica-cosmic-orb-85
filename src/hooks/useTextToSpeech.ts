@@ -1,4 +1,6 @@
+
 import { useState, useCallback, useRef } from 'react';
+import { GoogleTTSService } from '@/services/googleTTS';
 
 interface UseTextToSpeechOptions {
   onStart?: () => void;
@@ -8,6 +10,7 @@ interface UseTextToSpeechOptions {
   pitch?: number;
   volume?: number;
   voice?: SpeechSynthesisVoice | null;
+  useGoogleTTS?: boolean;
 }
 
 const filterEmojis = (text: string): string => {
@@ -31,13 +34,29 @@ export const useTextToSpeech = ({
   rate = 1,
   pitch = 1,
   volume = 1,
-  voice = null
+  voice = null,
+  useGoogleTTS = false
 }: UseTextToSpeechOptions = {}) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const googleTTSRef = useRef<GoogleTTSService | null>(null);
 
-  const speak = useCallback((text: string) => {
+  // Initialize Google TTS if needed
+  const initializeGoogleTTS = useCallback(() => {
+    const apiKey = localStorage.getItem('vivica_google_tts_key');
+    if (apiKey && !googleTTSRef.current) {
+      const voiceName = localStorage.getItem('vivica_google_voice') || 'en-US-Standard-E';
+      googleTTSRef.current = new GoogleTTSService({
+        apiKey,
+        voice: voiceName
+      });
+    }
+    return googleTTSRef.current;
+  }, []);
+
+  const speak = useCallback(async (text: string) => {
     if (!text.trim()) return;
 
     // Filter out emojis before speaking
@@ -46,7 +65,64 @@ export const useTextToSpeech = ({
 
     // Stop any current speech
     speechSynthesis.cancel();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
 
+    const shouldUseGoogle = useGoogleTTS || localStorage.getItem('vivica_use_google_tts') === 'true';
+    
+    if (shouldUseGoogle) {
+      const googleTTS = initializeGoogleTTS();
+      if (googleTTS) {
+        try {
+          console.log('Using Google TTS');
+          setIsSpeaking(true);
+          setIsPaused(false);
+          onStart?.();
+
+          const audioContent = await googleTTS.synthesize(filteredText);
+          
+          // Create audio element for playback
+          const audioBlob = new Blob([
+            Uint8Array.from(atob(audioContent), c => c.charCodeAt(0))
+          ], { type: 'audio/mp3' });
+          
+          const audioUrl = URL.createObjectURL(audioBlob);
+          const audio = new Audio(audioUrl);
+          audioRef.current = audio;
+          
+          audio.volume = volume;
+          
+          audio.onended = () => {
+            console.log('Google TTS speech ended');
+            URL.revokeObjectURL(audioUrl);
+            setIsSpeaking(false);
+            setIsPaused(false);
+            audioRef.current = null;
+            onEnd?.();
+          };
+          
+          audio.onerror = (event) => {
+            console.error('Google TTS audio error:', event);
+            URL.revokeObjectURL(audioUrl);
+            setIsSpeaking(false);
+            setIsPaused(false);
+            audioRef.current = null;
+            onError?.(event);
+          };
+          
+          await audio.play();
+          return;
+        } catch (error) {
+          console.error('Google TTS error, falling back to browser TTS:', error);
+          // Fall back to browser TTS
+        }
+      }
+    }
+
+    // Use browser TTS (fallback or default)
+    console.log('Using browser TTS');
     const utterance = new SpeechSynthesisUtterance(filteredText);
     utteranceRef.current = utterance;
 
@@ -61,21 +137,21 @@ export const useTextToSpeech = ({
 
     // Event handlers
     utterance.onstart = () => {
-      console.log('Speech started');
+      console.log('Browser TTS speech started');
       setIsSpeaking(true);
       setIsPaused(false);
       onStart?.();
     };
 
     utterance.onend = () => {
-      console.log('Speech ended');
+      console.log('Browser TTS speech ended');
       setIsSpeaking(false);
       setIsPaused(false);
       onEnd?.();
     };
 
     utterance.onerror = (event) => {
-      console.error('Speech error:', event);
+      console.error('Browser TTS speech error:', event);
       setIsSpeaking(false);
       setIsPaused(false);
       onError?.(event);
@@ -93,23 +169,37 @@ export const useTextToSpeech = ({
 
     // Start speaking
     speechSynthesis.speak(utterance);
-  }, [rate, pitch, volume, voice, onStart, onEnd, onError]);
+  }, [rate, pitch, volume, voice, onStart, onEnd, onError, useGoogleTTS, initializeGoogleTTS]);
 
   const stopSpeaking = useCallback(() => {
     speechSynthesis.cancel();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
     setIsSpeaking(false);
     setIsPaused(false);
   }, []);
 
   const pauseSpeaking = useCallback(() => {
     if (isSpeaking && !isPaused) {
-      speechSynthesis.pause();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        setIsPaused(true);
+      } else {
+        speechSynthesis.pause();
+      }
     }
   }, [isSpeaking, isPaused]);
 
   const resumeSpeaking = useCallback(() => {
     if (isSpeaking && isPaused) {
-      speechSynthesis.resume();
+      if (audioRef.current) {
+        audioRef.current.play();
+        setIsPaused(false);
+      } else {
+        speechSynthesis.resume();
+      }
     }
   }, [isSpeaking, isPaused]);
 

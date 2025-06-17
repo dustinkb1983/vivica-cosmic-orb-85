@@ -125,12 +125,11 @@ const EnhancedTextarea = React.forwardRef<HTMLTextAreaElement, EnhancedTextareaP
     }, [currentValue, history.length]);
 
     return (
-      <div className="relative">
+      <div className="space-y-2">
         <textarea
           ref={textareaRef}
           className={cn(
             "flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-vertical",
-            showActions && "pr-20",
             className
           )}
           value={currentValue}
@@ -140,48 +139,52 @@ const EnhancedTextarea = React.forwardRef<HTMLTextAreaElement, EnhancedTextareaP
         />
         
         {showActions && (
-          <div className="absolute top-2 right-2 flex gap-1">
+          <div className="flex gap-1 justify-end">
             <Button
               type="button"
               variant="ghost"
-              size="icon"
-              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+              size="sm"
+              className="h-8 px-2 text-muted-foreground hover:text-foreground"
               onClick={handleCopy}
               title="Copy (Ctrl+C)"
             >
-              <Copy className="h-3 w-3" />
+              <Copy className="h-3 w-3 mr-1" />
+              Copy
             </Button>
             <Button
               type="button"
               variant="ghost"
-              size="icon"
-              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+              size="sm"
+              className="h-8 px-2 text-muted-foreground hover:text-foreground"
               onClick={handlePaste}
               title="Paste (Ctrl+V)"
             >
-              <Clipboard className="h-3 w-3" />
+              <Clipboard className="h-3 w-3 mr-1" />
+              Paste
             </Button>
             <Button
               type="button"
               variant="ghost"
-              size="icon"
-              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+              size="sm"
+              className="h-8 px-2 text-muted-foreground hover:text-foreground"
               onClick={handleUndo}
               disabled={historyIndex <= 0}
               title="Undo (Ctrl+Z)"
             >
-              <Undo className="h-3 w-3" />
+              <Undo className="h-3 w-3 mr-1" />
+              Undo
             </Button>
             <Button
               type="button"
               variant="ghost"
-              size="icon"
-              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+              size="sm"
+              className="h-8 px-2 text-muted-foreground hover:text-foreground"
               onClick={handleRedo}
               disabled={historyIndex >= history.length - 1}
               title="Redo (Ctrl+Y)"
             >
-              <Redo className="h-3 w-3" />
+              <Redo className="h-3 w-3 mr-1" />
+              Redo
             </Button>
           </div>
         )}
