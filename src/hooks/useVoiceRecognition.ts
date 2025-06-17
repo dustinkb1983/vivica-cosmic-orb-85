@@ -7,9 +7,9 @@ interface UseVoiceRecognitionOptions {
   language?: string;
   continuous?: boolean;
   speechTimeout?: number;
+  hardTimeout?: number;
 }
 
-// Extend the Window interface for TypeScript
 declare global {
   interface Window {
     SpeechRecognition: any;
@@ -22,14 +22,62 @@ export const useVoiceRecognition = ({
   onError,
   language = 'en-US',
   continuous = true,
-  speechTimeout = 1000 // Reduced timeout for faster response
+  speechTimeout = 1500,
+  hardTimeout = 30000 // 30 second hard timeout
 }: UseVoiceRecognitionOptions) => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const recognitionRef = useRef<any>(null);
   const isInitializedRef = useRef(false);
   const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hardTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const finalTranscriptRef = useRef('');
+  const isActiveRef = useRef(false);
+
+  const checkMicrophonePermission = useCallback(async () => {
+    try {
+      const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      setHasPermission(permission.state === 'granted');
+      
+      permission.onchange = () => {
+        setHasPermission(permission.state === 'granted');
+      };
+    } catch (error) {
+      console.log('Permission API not supported, will check during recognition');
+      setHasPermission(null);
+    }
+  }, []);
+
+  const cleanupTimeouts = useCallback(() => {
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+      speechTimeoutRef.current = null;
+    }
+    if (hardTimeoutRef.current) {
+      clearTimeout(hardTimeoutRef.current);
+      hardTimeoutRef.current = null;
+    }
+  }, []);
+
+  const forceStop = useCallback(() => {
+    console.log('Force stopping recognition');
+    isActiveRef.current = false;
+    setIsListening(false);
+    cleanupTimeouts();
+    
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+        recognitionRef.current.stop();
+      } catch (error) {
+        console.log('Error stopping recognition:', error);
+      }
+    }
+    
+    setTranscript('');
+    finalTranscriptRef.current = '';
+  }, [cleanupTimeouts]);
 
   const initializeRecognition = useCallback(() => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -41,18 +89,29 @@ export const useVoiceRecognition = ({
     const recognition = new SpeechRecognition();
 
     recognition.continuous = continuous;
-    recognition.interimResults = true; // Enable interim results for better responsiveness
+    recognition.interimResults = true;
     recognition.lang = language;
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       console.log('Voice recognition started');
+      if (!isActiveRef.current) return;
+      
       setIsListening(true);
       finalTranscriptRef.current = '';
       setTranscript('');
+      
+      // Set hard timeout to prevent getting stuck
+      hardTimeoutRef.current = setTimeout(() => {
+        console.log('Hard timeout reached, forcing stop');
+        onError('timeout');
+        forceStop();
+      }, hardTimeout);
     };
 
     recognition.onresult = (event: any) => {
+      if (!isActiveRef.current) return;
+      
       let interimTranscript = '';
       let finalTranscript = '';
 
@@ -65,21 +124,15 @@ export const useVoiceRecognition = ({
         }
       }
 
-      // Update the display transcript
       setTranscript(finalTranscriptRef.current + finalTranscript + interimTranscript);
 
       if (finalTranscript) {
         finalTranscriptRef.current += finalTranscript;
         
-        // Clear any existing timeout
-        if (speechTimeoutRef.current) {
-          clearTimeout(speechTimeoutRef.current);
-        }
-
-        // Set a timeout to process the final transcript after a pause
+        cleanupTimeouts();
         speechTimeoutRef.current = setTimeout(() => {
           const toSend = finalTranscriptRef.current.trim();
-          if (toSend.length > 2) {
+          if (toSend.length > 2 && isActiveRef.current) {
             console.log('Processing final transcript:', toSend);
             onResult(toSend);
             finalTranscriptRef.current = '';
@@ -91,26 +144,71 @@ export const useVoiceRecognition = ({
 
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
-      setIsListening(false);
-      if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
       
-      // Only call onError for significant errors, not 'no-speech'
-      if (event.error !== 'no-speech' && event.error !== 'aborted') {
-        onError(event.error);
+      if (!isActiveRef.current) return;
+      
+      cleanupTimeouts();
+      setIsListening(false);
+      
+      // Handle different error types
+      switch (event.error) {
+        case 'not-allowed':
+          setHasPermission(false);
+          onError('Microphone permission denied');
+          break;
+        case 'no-speech':
+          // Restart listening if still active
+          if (isActiveRef.current) {
+            setTimeout(() => {
+              if (isActiveRef.current) {
+                console.log('Restarting after no-speech');
+                startListening();
+              }
+            }, 1000);
+          }
+          break;
+        case 'network':
+          onError('Network error - check your connection');
+          break;
+        case 'aborted':
+          // Expected when manually stopped
+          break;
+        default:
+          onError(`Speech recognition error: ${event.error}`);
       }
     };
 
     recognition.onend = () => {
       console.log('Voice recognition ended');
+      
+      if (!isActiveRef.current) return;
+      
+      cleanupTimeouts();
       setIsListening(false);
-      if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
+      
+      // Auto-restart if still active and no errors
+      setTimeout(() => {
+        if (isActiveRef.current) {
+          console.log('Auto-restarting recognition');
+          startListening();
+        }
+      }, 500);
     };
 
     return recognition;
-  }, [onResult, onError, language, continuous, speechTimeout]);
+  }, [onResult, onError, language, continuous, speechTimeout, hardTimeout, cleanupTimeouts, forceStop]);
 
   const startListening = useCallback(() => {
-    console.log('startListening called, current state:', { isListening, isInitialized: isInitializedRef.current });
+    console.log('startListening called, current state:', { 
+      isListening, 
+      isActive: isActiveRef.current,
+      hasPermission 
+    });
+    
+    if (hasPermission === false) {
+      onError('Microphone permission required');
+      return;
+    }
     
     if (!isInitializedRef.current || !recognitionRef.current) {
       recognitionRef.current = initializeRecognition();
@@ -119,66 +217,57 @@ export const useVoiceRecognition = ({
 
     if (recognitionRef.current && !isListening) {
       try {
-        console.log('Actually starting recognition...');
+        isActiveRef.current = true;
         finalTranscriptRef.current = '';
         setTranscript('');
         recognitionRef.current.start();
       } catch (error) {
         console.error('Error starting recognition:', error);
         if (error instanceof Error && !error.message.includes('already started')) {
-          onError(error);
+          onError(error.message);
         }
       }
     }
-  }, [initializeRecognition, isListening, onError]);
+  }, [initializeRecognition, isListening, onError, hasPermission]);
 
   const stopListening = useCallback(() => {
     console.log('stopListening called');
-    if (recognitionRef.current && isListening) {
-      try {
-        recognitionRef.current.stop();
-      } catch (error) {
-        console.error('Error stopping recognition:', error);
-      }
-    }
-    
-    if (speechTimeoutRef.current) {
-      clearTimeout(speechTimeoutRef.current);
-      speechTimeoutRef.current = null;
-    }
-  }, [isListening]);
+    isActiveRef.current = false;
+    forceStop();
+  }, [forceStop]);
 
   const resetTranscript = useCallback(() => {
     setTranscript('');
     finalTranscriptRef.current = '';
-    if (speechTimeoutRef.current) {
-      clearTimeout(speechTimeoutRef.current);
-      speechTimeoutRef.current = null;
-    }
-  }, []);
+    cleanupTimeouts();
+  }, [cleanupTimeouts]);
 
   useEffect(() => {
+    checkMicrophonePermission();
+    
     return () => {
+      isActiveRef.current = false;
+      cleanupTimeouts();
+      
       if (recognitionRef.current) {
         try {
+          recognitionRef.current.abort();
           recognitionRef.current.stop();
         } catch (error) {
           console.error('Error cleaning up recognition:', error);
         }
       }
-      
-      if (speechTimeoutRef.current) {
-        clearTimeout(speechTimeoutRef.current);
-      }
     };
-  }, []);
+  }, [checkMicrophonePermission, cleanupTimeouts]);
 
   return {
     isListening,
     transcript,
+    hasPermission,
     startListening,
     stopListening,
     resetTranscript,
+    forceStop,
     isSupported: 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window
   };
 };

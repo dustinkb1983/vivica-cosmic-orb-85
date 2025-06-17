@@ -65,26 +65,32 @@ export const VivicaInterface = () => {
   
   const { 
     isListening, 
-    transcript, 
+    transcript,
+    hasPermission,
     startListening, 
     stopListening,
-    resetTranscript 
+    resetTranscript,
+    forceStop
   } = useVoiceRecognition({
     onResult: handleVoiceInput,
     onError: (error) => {
       console.error('Voice recognition error:', error);
       isProcessingRef.current = false;
       
-      // For 'no-speech' errors, just restart listening if enabled
-      if (error === 'no-speech' && isEnabled) {
-        setState('listening');
-        setTimeout(() => {
-          console.log('Restarting listening after no-speech');
-          startListening();
-        }, 1000);
-      } else if (isEnabled && error !== 'aborted') {
-        // For other errors, show toast and restart
-        toast.error(`Voice recognition error: ${error}`);
+      if (typeof error === 'string' && error.includes('permission')) {
+        toast.error('Microphone permission required. Please allow microphone access.');
+        setState('idle');
+        setIsEnabled(false);
+        return;
+      }
+      
+      if (error === 'timeout') {
+        toast.info('Voice recognition timed out. Restarting...');
+      } else if (error !== 'no-speech' && error !== 'aborted') {
+        toast.error(`Voice error: ${error}`);
+      }
+      
+      if (isEnabled) {
         setState('listening');
         setTimeout(() => {
           console.log('Restarting listening after error');
@@ -94,7 +100,8 @@ export const VivicaInterface = () => {
         setState('idle');
       }
     },
-    speechTimeout: 1500
+    speechTimeout: 1500,
+    hardTimeout: 30000
   });
 
   async function handleVoiceInput(text: string) {
@@ -163,6 +170,11 @@ export const VivicaInterface = () => {
 
   const toggleVivica = useCallback(() => {
     if (!isEnabled) {
+      if (hasPermission === false) {
+        toast.error('Microphone permission required. Please allow microphone access and try again.');
+        return;
+      }
+      
       console.log('Activating VIVICA');
       isProcessingRef.current = false;
       setState('listening');
@@ -176,12 +188,12 @@ export const VivicaInterface = () => {
       isProcessingRef.current = false;
       setState('idle');
       setIsEnabled(false);
-      stopListening();
+      forceStop();
       stopSpeaking();
       resetTranscript();
       toast.info('VIVICA deactivated');
     }
-  }, [isEnabled, startListening, stopListening, stopSpeaking, resetTranscript]);
+  }, [isEnabled, hasPermission, startListening, forceStop, stopSpeaking, resetTranscript]);
 
   const handleSpaceBar = useCallback((e: KeyboardEvent) => {
     if (e.code === 'Space' && e.type === 'keydown') {
@@ -282,6 +294,40 @@ export const VivicaInterface = () => {
     };
   }, []);
 
+  const getStatusText = () => {
+    if (hasPermission === false) {
+      return 'Microphone permission required';
+    }
+    
+    switch (state) {
+      case 'idle':
+        return (
+          <span className="block">
+            <span className="hidden sm:inline">Space or </span>
+            <span>tap to activate</span>
+            <span className="hidden sm:inline">, hold for settings</span>
+          </span>
+        );
+      case 'listening':
+        return (
+          <span className="flex items-center gap-2">
+            Listening...
+            <div className="flex gap-1">
+              <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse"></div>
+              <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+            </div>
+          </span>
+        );
+      case 'processing':
+        return 'Processing...';
+      case 'speaking':
+        return 'Speaking...';
+      default:
+        return '';
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black overflow-hidden select-none touch-none">
       {/* Background Canvas */}
@@ -306,18 +352,9 @@ export const VivicaInterface = () => {
           V I V I C A
         </h1>
         <div className="text-center text-white/60 mt-1 sm:mt-2 text-xs sm:text-sm px-2">
-          {state === 'idle' && (
-            <span className="block">
-              <span className="hidden sm:inline">Space or </span>
-              <span>tap to activate</span>
-              <span className="hidden sm:inline">, hold for settings</span>
-            </span>
-          )}
-          {state === 'listening' && 'Listening...'}
-          {state === 'processing' && 'Processing...'}
-          {state === 'speaking' && 'Speaking...'}
+          {getStatusText()}
           {transcript && (
-            <div className="mt-2 text-white/80 text-xs italic">
+            <div className="mt-2 text-white/80 text-xs italic max-w-sm mx-auto line-clamp-2">
               "{transcript}"
             </div>
           )}
@@ -354,6 +391,7 @@ export const VivicaInterface = () => {
           Speaking: {isSpeaking ? 'Yes' : 'No'}<br/>
           Enabled: {isEnabled ? 'Yes' : 'No'}<br/>
           Processing: {isProcessingRef.current ? 'Yes' : 'No'}<br/>
+          Permission: {hasPermission === null ? 'Unknown' : hasPermission ? 'Granted' : 'Denied'}<br/>
           Messages: {messages.length}<br/>
           Transcript: {transcript ? `"${transcript}"` : 'None'}
         </div>

@@ -1,14 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
-import { X, Key, Brain, MessageSquare, Plus, Trash2, Sliders, History, Volume2, VolumeX, HelpCircle } from 'lucide-react';
+import { X, Key, Brain, MessageSquare, Plus, Trash2, Sliders, History, Volume2, VolumeX, HelpCircle, Download, Upload, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import { EnhancedTextarea } from '@/components/ui/enhanced-textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCustomModels } from '@/hooks/useCustomModels';
 import { useSystemPrompts } from '@/hooks/useSystemPrompts';
+import { useClipboard } from '@/hooks/useClipboard';
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -38,6 +38,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   const { models, addModel, deleteModel } = useCustomModels();
   const { prompts, addPrompt, deletePrompt } = useSystemPrompts();
+  const { copyToClipboard, pasteToField } = useClipboard();
 
   useEffect(() => {
     const savedApiKey = localStorage.getItem('vivica_api_key') || '';
@@ -86,6 +87,49 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
   };
 
+  const exportSettings = () => {
+    const settings = {
+      apiKey: apiKey ? '***HIDDEN***' : '',
+      model,
+      systemPrompt,
+      temperature,
+      customModels: models.filter(m => !m.isDefault),
+      customPrompts: prompts.filter(p => !p.isDefault),
+      exportDate: new Date().toISOString()
+    };
+    
+    copyToClipboard(JSON.stringify(settings, null, 2), 'Settings exported to clipboard');
+  };
+
+  const importSettings = async () => {
+    try {
+      const clipboardText = await navigator.clipboard.readText();
+      const settings = JSON.parse(clipboardText);
+      
+      if (settings.model) setModel(settings.model);
+      if (settings.systemPrompt) setSystemPrompt(settings.systemPrompt);
+      if (settings.temperature !== undefined) setTemperature(settings.temperature);
+      
+      // Import custom models
+      if (settings.customModels) {
+        settings.customModels.forEach((model: any) => {
+          addModel(model.name, model.value);
+        });
+      }
+      
+      // Import custom prompts
+      if (settings.customPrompts) {
+        settings.customPrompts.forEach((prompt: any) => {
+          addPrompt(prompt.name, prompt.content);
+        });
+      }
+      
+      toast.success('Settings imported successfully');
+    } catch (error) {
+      toast.error('Failed to import settings. Please check clipboard format.');
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose();
@@ -119,6 +163,24 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             </CardDescription>
           </div>
           <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={exportSettings}
+              className="text-gray-400 hover:text-white hover:bg-gray-800"
+              title="Export Settings"
+            >
+              <Download className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={importSettings}
+              className="text-gray-400 hover:text-white hover:bg-gray-800"
+              title="Import Settings"
+            >
+              <Upload className="w-5 h-5" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -222,14 +284,25 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   <Key className="w-4 h-4" />
                   OpenRouter API Key
                 </Label>
-                <Input
-                  id="api-key"
-                  type="password"
-                  placeholder="Enter your OpenRouter API key"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="api-key"
+                    type="password"
+                    placeholder="Enter your OpenRouter API key"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 flex-1"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => pasteToField(setApiKey, 'API key pasted')}
+                    className="text-gray-400 hover:text-white"
+                    title="Paste API Key"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
                 <p className="text-xs text-gray-500">
                   Get your API key from{' '}
                   <a 
@@ -361,21 +434,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   </SelectContent>
                 </Select>
 
-                <Textarea
+                <EnhancedTextarea
                   placeholder="Define VIVICA's personality and behavior"
                   value={systemPrompt}
-                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  onValueChange={setSystemPrompt}
                   rows={4}
-                  className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 resize-none"
-                  style={{ 
-                    userSelect: 'text',
-                    WebkitUserSelect: 'text',
-                    MozUserSelect: 'text'
-                  }}
-                  onCopy={(e) => e.stopPropagation()}
-                  onCut={(e) => e.stopPropagation()}
-                  onPaste={(e) => e.stopPropagation()}
-                  onSelect={(e) => e.stopPropagation()}
+                  className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500"
                 />
 
                 {/* Add Custom Prompt */}
@@ -392,12 +456,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                       <Plus className="w-4 h-4" />
                     </Button>
                   </div>
-                  <Textarea
+                  <EnhancedTextarea
                     placeholder="Prompt content"
                     value={newPromptContent}
-                    onChange={(e) => setNewPromptContent(e.target.value)}
+                    onValueChange={setNewPromptContent}
                     rows={2}
-                    className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 resize-none"
+                    className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500"
+                    showActions={false}
                   />
                 </div>
               </div>
