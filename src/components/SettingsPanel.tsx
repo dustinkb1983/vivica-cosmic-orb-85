@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Key, Brain, MessageSquare, Plus, Trash2, Sliders, History, Volume2, VolumeX, HelpCircle, Download, Upload, Copy } from 'lucide-react';
+import { X, Key, Brain, MessageSquare, Plus, Trash2, Sliders, History, Volume2, VolumeX, HelpCircle, Download, Upload, Copy, Cloud, Newspaper, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EnhancedTextarea } from '@/components/ui/enhanced-textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { VoiceSettings } from '@/components/VoiceSettings';
 import { useCustomModels } from '@/hooks/useCustomModels';
 import { useSystemPrompts } from '@/hooks/useSystemPrompts';
 import { useClipboard } from '@/hooks/useClipboard';
@@ -27,9 +28,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   setIsMuted 
 }) => {
   const [apiKey, setApiKey] = useState('');
+  const [weatherApiKey, setWeatherApiKey] = useState('');
+  const [newsApiKey, setNewsApiKey] = useState('');
+  const [googleTtsKey, setGoogleTtsKey] = useState('');
   const [model, setModel] = useState('deepseek/deepseek-chat');
   const [systemPrompt, setSystemPrompt] = useState('You are VIVICA, a sophisticated AI assistant. Be helpful, concise, and engaging in your responses.');
   const [temperature, setTemperature] = useState(0.7);
+  const [useGoogleTTS, setUseGoogleTTS] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState('');
+  const [googleVoice, setGoogleVoice] = useState('en-US-Standard-E');
   const [newModelName, setNewModelName] = useState('');
   const [newModelValue, setNewModelValue] = useState('');
   const [newPromptName, setNewPromptName] = useState('');
@@ -43,24 +50,43 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   useEffect(() => {
     const savedApiKey = localStorage.getItem('vivica_api_key') || '';
+    const savedWeatherKey = localStorage.getItem('vivica_weather_api_key') || '';
+    const savedNewsKey = localStorage.getItem('vivica_news_api_key') || '';
+    const savedGoogleTtsKey = localStorage.getItem('vivica_google_tts_key') || '';
     const savedModel = localStorage.getItem('vivica_model') || 'deepseek/deepseek-chat';
     const savedPrompt = localStorage.getItem('vivica_system_prompt') || 'You are VIVICA, a sophisticated AI assistant. Be helpful, concise, and engaging in your responses.';
     const savedTemperature = parseFloat(localStorage.getItem('vivica_temperature') || '0.7');
     const savedPromptId = localStorage.getItem('vivica_selected_prompt_id') || '1';
+    const savedUseGoogleTTS = localStorage.getItem('vivica_use_google_tts') === 'true';
+    const savedSelectedVoice = localStorage.getItem('vivica_selected_voice') || '';
+    const savedGoogleVoice = localStorage.getItem('vivica_google_voice') || 'en-US-Standard-E';
     
     setApiKey(savedApiKey);
+    setWeatherApiKey(savedWeatherKey);
+    setNewsApiKey(savedNewsKey);
+    setGoogleTtsKey(savedGoogleTtsKey);
     setModel(savedModel);
     setSystemPrompt(savedPrompt);
     setTemperature(savedTemperature);
     setSelectedPromptId(savedPromptId);
+    setUseGoogleTTS(savedUseGoogleTTS);
+    setSelectedVoice(savedSelectedVoice);
+    setGoogleVoice(savedGoogleVoice);
   }, []);
 
   const handleSave = () => {
     localStorage.setItem('vivica_api_key', apiKey);
+    localStorage.setItem('vivica_weather_api_key', weatherApiKey);
+    localStorage.setItem('vivica_news_api_key', newsApiKey);
+    localStorage.setItem('vivica_google_tts_key', googleTtsKey);
     localStorage.setItem('vivica_model', model);
     localStorage.setItem('vivica_system_prompt', systemPrompt);
     localStorage.setItem('vivica_temperature', temperature.toString());
     localStorage.setItem('vivica_selected_prompt_id', selectedPromptId);
+    localStorage.setItem('vivica_use_google_tts', useGoogleTTS.toString());
+    localStorage.setItem('vivica_selected_voice', selectedVoice);
+    localStorage.setItem('vivica_google_voice', googleVoice);
+    toast.success('Settings saved successfully');
     onClose();
   };
 
@@ -279,43 +305,172 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
           {activeTab === 'settings' && (
             <>
-              {/* API Key */}
-              <div className="space-y-2">
-                <Label htmlFor="api-key" className="flex items-center gap-2 text-sm font-medium">
-                  <Key className="w-4 h-4" />
-                  OpenRouter API Key
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="api-key"
-                    type="password"
-                    placeholder="Enter your OpenRouter API key"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 flex-1"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => pasteToField(setApiKey, 'API key pasted')}
-                    className="text-gray-400 hover:text-white"
-                    title="Paste API Key"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
+              {/* API Keys Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">API Keys</h3>
+                
+                {/* OpenRouter API Key */}
+                <div className="space-y-2">
+                  <Label htmlFor="api-key" className="flex items-center gap-2 text-sm font-medium">
+                    <Key className="w-4 h-4" />
+                    OpenRouter API Key
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="api-key"
+                      type="password"
+                      placeholder="Enter your OpenRouter API key"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 flex-1"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => pasteToField(setApiKey, 'API key pasted')}
+                      className="text-gray-400 hover:text-white"
+                      title="Paste API Key"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Get your API key from{' '}
+                    <a 
+                      href="https://openrouter.ai" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 underline"
+                    >
+                      openrouter.ai
+                    </a>
+                  </p>
                 </div>
-                <p className="text-xs text-gray-500">
-                  Get your API key from{' '}
-                  <a 
-                    href="https://openrouter.ai" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-400 hover:text-blue-300 underline"
-                  >
-                    openrouter.ai
-                  </a>
-                </p>
+
+                {/* Weather API Key */}
+                <div className="space-y-2">
+                  <Label htmlFor="weather-key" className="flex items-center gap-2 text-sm font-medium">
+                    <Cloud className="w-4 h-4" />
+                    Weather API Key (OpenWeatherMap)
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="weather-key"
+                      type="password"
+                      placeholder="Enter your OpenWeatherMap API key"
+                      value={weatherApiKey}
+                      onChange={(e) => setWeatherApiKey(e.target.value)}
+                      className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 flex-1"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => pasteToField(setWeatherApiKey, 'Weather API key pasted')}
+                      className="text-gray-400 hover:text-white"
+                      title="Paste Weather API Key"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Get your free API key from{' '}
+                    <a 
+                      href="https://openweathermap.org/api" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 underline"
+                    >
+                      OpenWeatherMap
+                    </a>
+                  </p>
+                </div>
+
+                {/* News API Key */}
+                <div className="space-y-2">
+                  <Label htmlFor="news-key" className="flex items-center gap-2 text-sm font-medium">
+                    <Newspaper className="w-4 h-4" />
+                    News API Key
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="news-key"
+                      type="password"
+                      placeholder="Enter your NewsAPI key"
+                      value={newsApiKey}
+                      onChange={(e) => setNewsApiKey(e.target.value)}
+                      className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 flex-1"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => pasteToField(setNewsApiKey, 'News API key pasted')}
+                      className="text-gray-400 hover:text-white"
+                      title="Paste News API Key"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Get your free API key from{' '}
+                    <a 
+                      href="https://newsapi.org/" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 underline"
+                    >
+                      NewsAPI
+                    </a>
+                  </p>
+                </div>
+
+                {/* Google TTS API Key */}
+                <div className="space-y-2">
+                  <Label htmlFor="google-tts-key" className="flex items-center gap-2 text-sm font-medium">
+                    <Volume2 className="w-4 h-4" />
+                    Google Text-to-Speech API Key
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="google-tts-key"
+                      type="password"
+                      placeholder="Enter your Google Cloud TTS API key"
+                      value={googleTtsKey}
+                      onChange={(e) => setGoogleTtsKey(e.target.value)}
+                      className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 flex-1"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => pasteToField(setGoogleTtsKey, 'Google TTS API key pasted')}
+                      className="text-gray-400 hover:text-white"
+                      title="Paste Google TTS API Key"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Get your API key from{' '}
+                    <a 
+                      href="https://console.cloud.google.com/" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 underline"
+                    >
+                      Google Cloud Console
+                    </a>
+                  </p>
+                </div>
               </div>
+
+              {/* Voice Settings */}
+              <VoiceSettings
+                useGoogleTTS={useGoogleTTS}
+                setUseGoogleTTS={setUseGoogleTTS}
+                selectedVoice={selectedVoice}
+                setSelectedVoice={setSelectedVoice}
+                googleVoice={googleVoice}
+                setGoogleVoice={setGoogleVoice}
+              />
 
               {/* AI Model Management */}
               <div className="space-y-4">
