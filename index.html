@@ -12,6 +12,12 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="VIVICA" />
 
+    <!-- PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="VIVICA" />
+    <meta name="msapplication-TileColor" content="#4F46E5" />
+    <meta name="msapplication-config" content="browserconfig.xml" />
+
     <meta property="og:title" content="VIVICA - Voice AI Assistant" />
     <meta property="og:description" content="Sophisticated voice-activated AI assistant with mesmerizing visual interface" />
     <meta property="og:type" content="website" />
@@ -31,7 +37,7 @@
         touch-action: manipulation;
       }
       
-      /* Loading screen with solid black background */
+      /* Loading fallback - minimal */
       #loading {
         position: fixed;
         inset: 0;
@@ -42,65 +48,23 @@
         color: white;
         font-family: system-ui, -apple-system, sans-serif;
         z-index: 9999;
-        flex-direction: column;
-      }
-      
-      .loading-logo {
-        width: 120px;
-        height: 120px;
-        margin-bottom: 30px;
-        border-radius: 50%;
-        background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1), rgba(147, 197, 253, 0.3), rgba(59, 130, 246, 0.6));
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        animation: pulse 2s ease-in-out infinite;
-        box-shadow: 0 0 60px rgba(147, 51, 234, 0.8);
-      }
-      
-      .loading-logo img {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-      }
-      
-      @keyframes pulse {
-        0%, 100% { 
-          transform: scale(1); 
-          opacity: 0.9;
-          box-shadow: 0 0 60px rgba(147, 51, 234, 0.8);
-        }
-        50% { 
-          transform: scale(1.05); 
-          opacity: 1;
-          box-shadow: 0 0 80px rgba(147, 51, 234, 1);
-        }
+        opacity: 1;
+        transition: opacity 0.5s ease-out;
       }
       
       .loading-text {
-        font-size: 28px;
+        font-size: 24px;
         font-weight: bold;
         letter-spacing: 0.3em;
         color: white;
-        text-shadow: 0 0 20px rgba(147, 51, 234, 0.8);
-        margin-bottom: 10px;
-      }
-      
-      .loading-subtitle {
-        font-size: 14px;
-        color: rgba(255, 255, 255, 0.7);
-        letter-spacing: 0.1em;
+        opacity: 0.8;
       }
     </style>
   </head>
 
   <body>
     <div id="loading">
-      <div class="loading-logo">
-        <img src="/lovable-uploads/330a6051-8d5c-469e-9b09-82166212092e.png" alt="VIVICA Logo" />
-      </div>
       <div class="loading-text">V I V I C A</div>
-      <div class="loading-subtitle">Voice AI Assistant</div>
     </div>
     
     <div id="root"></div>
@@ -113,10 +77,9 @@
           const loading = document.getElementById('loading');
           if (loading) {
             loading.style.opacity = '0';
-            loading.style.transition = 'opacity 0.5s ease-out';
             setTimeout(() => loading.remove(), 500);
           }
-        }, 1500);
+        }, 1000);
       });
       
       // Prevent context menu

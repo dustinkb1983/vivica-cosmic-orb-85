@@ -23,20 +23,21 @@ export const useVoiceRecognition = ({
   language = 'en-US',
   continuous = true,
   speechTimeout = 1500,
-  hardTimeout = 30000 // 30 second hard timeout
+  hardTimeout = 30000
 }: UseVoiceRecognitionOptions) => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const recognitionRef = useRef<any>(null);
-  const isInitializedRef = useRef(false);
   const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hardTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const finalTranscriptRef = useRef('');
   const isActiveRef = useRef(false);
+  const isStartingRef = useRef(false);
 
   const checkMicrophonePermission = useCallback(async () => {
     try {
+      // First check if we already have permission
       const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
       setHasPermission(permission.state === 'granted');
       
@@ -48,6 +49,22 @@ export const useVoiceRecognition = ({
       setHasPermission(null);
     }
   }, []);
+
+  const requestMicrophonePermission = useCallback(async () => {
+    try {
+      console.log('Requesting microphone permission...');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop()); // Stop immediately, we just needed permission
+      setHasPermission(true);
+      console.log('Microphone permission granted');
+      return true;
+    } catch (error) {
+      console.error('Microphone permission denied:', error);
+      setHasPermission(false);
+      onError('Microphone permission denied. Please allow microphone access and try again.');
+      return false;
+    }
+  }, [onError]);
 
   const cleanupTimeouts = useCallback(() => {
     if (speechTimeoutRef.current) {
@@ -63,6 +80,7 @@ export const useVoiceRecognition = ({
   const forceStop = useCallback(() => {
     console.log('Force stopping recognition');
     isActiveRef.current = false;
+    isStartingRef.current = false;
     setIsListening(false);
     cleanupTimeouts();
     
@@ -95,6 +113,7 @@ export const useVoiceRecognition = ({
 
     recognition.onstart = () => {
       console.log('Voice recognition started');
+      isStartingRef.current = false;
       if (!isActiveRef.current) return;
       
       setIsListening(true);
@@ -144,6 +163,7 @@ export const useVoiceRecognition = ({
 
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
+      isStartingRef.current = false;
       
       if (!isActiveRef.current) return;
       
@@ -160,7 +180,7 @@ export const useVoiceRecognition = ({
           // Restart listening if still active
           if (isActiveRef.current) {
             setTimeout(() => {
-              if (isActiveRef.current) {
+              if (isActiveRef.current && !isStartingRef.current) {
                 console.log('Restarting after no-speech');
                 startListening();
               }
@@ -180,6 +200,7 @@ export const useVoiceRecognition = ({
 
     recognition.onend = () => {
       console.log('Voice recognition ended');
+      isStartingRef.current = false;
       
       if (!isActiveRef.current) return;
       
@@ -188,7 +209,7 @@ export const useVoiceRecognition = ({
       
       // Auto-restart if still active and no errors
       setTimeout(() => {
-        if (isActiveRef.current) {
+        if (isActiveRef.current && !isStartingRef.current) {
           console.log('Auto-restarting recognition');
           startListening();
         }
@@ -198,37 +219,46 @@ export const useVoiceRecognition = ({
     return recognition;
   }, [onResult, onError, language, continuous, speechTimeout, hardTimeout, cleanupTimeouts, forceStop]);
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback(async () => {
     console.log('startListening called, current state:', { 
       isListening, 
       isActive: isActiveRef.current,
+      isStarting: isStartingRef.current,
       hasPermission 
     });
     
-    if (hasPermission === false) {
-      onError('Microphone permission required');
+    // Prevent multiple simultaneous starts
+    if (isStartingRef.current || isListening) {
+      console.log('Already starting or listening, ignoring request');
       return;
     }
     
-    if (!isInitializedRef.current || !recognitionRef.current) {
+    // Check if we have permission first
+    if (hasPermission === false) {
+      const granted = await requestMicrophonePermission();
+      if (!granted) return;
+    }
+    
+    if (!recognitionRef.current) {
       recognitionRef.current = initializeRecognition();
-      isInitializedRef.current = true;
     }
 
-    if (recognitionRef.current && !isListening) {
+    if (recognitionRef.current && !isListening && !isStartingRef.current) {
       try {
         isActiveRef.current = true;
+        isStartingRef.current = true;
         finalTranscriptRef.current = '';
         setTranscript('');
         recognitionRef.current.start();
       } catch (error) {
         console.error('Error starting recognition:', error);
+        isStartingRef.current = false;
         if (error instanceof Error && !error.message.includes('already started')) {
           onError(error.message);
         }
       }
     }
-  }, [initializeRecognition, isListening, onError, hasPermission]);
+  }, [initializeRecognition, isListening, onError, hasPermission, requestMicrophonePermission]);
 
   const stopListening = useCallback(() => {
     console.log('stopListening called');
@@ -247,6 +277,7 @@ export const useVoiceRecognition = ({
     
     return () => {
       isActiveRef.current = false;
+      isStartingRef.current = false;
       cleanupTimeouts();
       
       if (recognitionRef.current) {
@@ -268,6 +299,7 @@ export const useVoiceRecognition = ({
     stopListening,
     resetTranscript,
     forceStop,
+    requestMicrophonePermission,
     isSupported: 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window
   };
 };

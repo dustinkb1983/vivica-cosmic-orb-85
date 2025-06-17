@@ -12,16 +12,16 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
     // Fade in
     const fadeInTimer = setTimeout(() => {
       setIsVisible(true);
-    }, 100);
+    }, 200);
 
     // Fade out and complete
     const fadeOutTimer = setTimeout(() => {
       setIsVisible(false);
-    }, 2000);
+    }, 2500);
 
     const completeTimer = setTimeout(() => {
       onComplete();
-    }, 2500);
+    }, 3000);
 
     return () => {
       clearTimeout(fadeInTimer);
@@ -34,14 +34,14 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
     <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
       <div 
         className={`text-center transition-all duration-1000 ease-in-out ${
-          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+          isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
         }`}
       >
-        <div className="w-32 h-32 mx-auto mb-8 rounded-full bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 animate-pulse shadow-2xl shadow-blue-500/50"></div>
-        <h1 className="text-6xl font-bold tracking-[0.3em] text-white">
+        <div className="w-24 h-24 sm:w-32 sm:h-32 mx-auto mb-6 sm:mb-8 rounded-full bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 animate-pulse shadow-2xl shadow-blue-500/50"></div>
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-[0.3em] text-white mb-2">
           V I V I C A
         </h1>
-        <p className="text-gray-400 mt-4 text-lg">AI Voice Assistant</p>
+        <p className="text-gray-400 text-sm sm:text-base">AI Voice Assistant</p>
       </div>
     </div>
   );

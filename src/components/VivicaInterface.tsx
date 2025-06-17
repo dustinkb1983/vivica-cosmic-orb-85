@@ -73,7 +73,8 @@ export const VivicaInterface = () => {
     startListening, 
     stopListening,
     resetTranscript,
-    forceStop
+    forceStop,
+    requestMicrophonePermission
   } = useVoiceRecognition({
     onResult: handleVoiceInput,
     onError: (error) => {
@@ -108,8 +109,8 @@ export const VivicaInterface = () => {
         setState('idle');
       }
     },
-    speechTimeout: 2000, // Reduced timeout for better responsiveness
-    hardTimeout: 25000   // Reduced hard timeout
+    speechTimeout: 2000,
+    hardTimeout: 25000
   });
 
   const { detectIntent } = useIntentRecognition();
@@ -215,11 +216,16 @@ export const VivicaInterface = () => {
     }
   }
 
-  const toggleVivica = useCallback(() => {
+  const toggleVivica = useCallback(async () => {
     if (!isEnabled) {
-      if (hasPermission === false) {
-        toast.error('Microphone permission required. Please allow microphone access and try again.');
-        return;
+      // Always request permission explicitly when user activates
+      if (hasPermission !== true) {
+        console.log('Requesting microphone permission...');
+        const granted = await requestMicrophonePermission();
+        if (!granted) {
+          toast.error('Microphone permission is required for VIVICA to work.');
+          return;
+        }
       }
       
       console.log('Activating VIVICA');
@@ -240,7 +246,7 @@ export const VivicaInterface = () => {
       resetTranscript();
       toast.info('VIVICA deactivated');
     }
-  }, [isEnabled, hasPermission, startListening, forceStop, stopSpeaking, resetTranscript]);
+  }, [isEnabled, hasPermission, requestMicrophonePermission, startListening, forceStop, stopSpeaking, resetTranscript]);
 
   const handleSpaceBar = useCallback((e: KeyboardEvent) => {
     if (e.code === 'Space' && e.type === 'keydown') {
@@ -372,7 +378,7 @@ export const VivicaInterface = () => {
 
   const getStatusText = () => {
     if (hasPermission === false) {
-      return 'Microphone permission required';
+      return 'Tap to allow microphone access';
     }
     
     switch (state) {

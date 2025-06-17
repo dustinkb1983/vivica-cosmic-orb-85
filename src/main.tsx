@@ -2,10 +2,13 @@
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { registerServiceWorker } from './lib/pwa'
+import { registerServiceWorker, initializePWAPrompt } from './lib/pwa'
 
 // Register service worker for PWA functionality
 registerServiceWorker();
+
+// Initialize PWA install prompt
+initializePWAPrompt();
 
 // Prevent zooming on mobile
 document.addEventListener('touchmove', (e) => {
