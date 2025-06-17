@@ -2,7 +2,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Copy, Paste, Undo, Redo } from "lucide-react";
+import { Copy, Clipboard, Undo, Redo } from "lucide-react";
 import { useClipboard } from "@/hooks/useClipboard";
 
 export interface EnhancedTextareaProps
@@ -69,7 +69,7 @@ const EnhancedTextarea = React.forwardRef<HTMLTextAreaElement, EnhancedTextareaP
       }
     }, [history, historyIndex, updateValue]);
 
-    const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
+    const handleKeyDown = React.useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.ctrlKey || e.metaKey) {
         switch (e.key) {
           case 'z':
@@ -159,7 +159,7 @@ const EnhancedTextarea = React.forwardRef<HTMLTextAreaElement, EnhancedTextareaP
               onClick={handlePaste}
               title="Paste (Ctrl+V)"
             >
-              <Paste className="h-3 w-3" />
+              <Clipboard className="h-3 w-3" />
             </Button>
             <Button
               type="button"

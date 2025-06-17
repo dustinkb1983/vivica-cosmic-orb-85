@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useCustomModels } from '@/hooks/useCustomModels';
 import { useSystemPrompts } from '@/hooks/useSystemPrompts';
 import { useClipboard } from '@/hooks/useClipboard';
+import { toast } from 'sonner';
 
 interface SettingsPanelProps {
   isOpen: boolean;
