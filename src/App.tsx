@@ -11,48 +11,34 @@ const queryClient = new QueryClient();
 
 function AppContent() {
   const [showSplash, setShowSplash] = useState(true);
-  const [isReactReady, setIsReactReady] = useState(false);
 
   useEffect(() => {
-    // Ensure React is fully initialized before rendering components with hooks
+    // Simple splash screen timer
     const timer = setTimeout(() => {
-      setIsReactReady(true);
-    }, 100);
+      setShowSplash(false);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, []);
 
-  if (!isReactReady) {
-    return <div className="fixed inset-0 bg-black flex items-center justify-center">
-      <div className="text-white">Loading...</div>
-    </div>;
+  if (showSplash) {
+    return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
 
   return (
     <div className="min-h-screen">
-      {showSplash ? (
-        <SplashScreen onComplete={() => setShowSplash(false)} />
-      ) : (
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      )}
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
       <Toaster />
     </div>
   );
 }
 
 function App() {
-  // Simple check without hooks to ensure DOM is ready
-  if (typeof window === 'undefined' || !document.getElementById('root')) {
-    return <div className="fixed inset-0 bg-black flex items-center justify-center">
-      <div className="text-white">Initializing...</div>
-    </div>;
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <AppContent />
