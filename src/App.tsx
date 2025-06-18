@@ -19,24 +19,25 @@ function App() {
     setIsReady(true);
   }, []);
 
+  // Don't render anything until React is ready
   if (!isReady) {
     return null;
-  }
-
-  if (showSplash) {
-    return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <div className="min-h-screen">
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+          {showSplash ? (
+            <SplashScreen onComplete={() => setShowSplash(false)} />
+          ) : (
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          )}
           <Toaster />
         </div>
       </TooltipProvider>
