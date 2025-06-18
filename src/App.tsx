@@ -47,6 +47,23 @@ function AppContent() {
 }
 
 function App() {
+  const [isAppReady, setIsAppReady] = useState(false);
+
+  useEffect(() => {
+    // Additional delay to ensure React context is fully established
+    const timer = setTimeout(() => {
+      setIsAppReady(true);
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!isAppReady) {
+    return <div className="fixed inset-0 bg-black flex items-center justify-center">
+      <div className="text-white">Initializing...</div>
+    </div>;
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
