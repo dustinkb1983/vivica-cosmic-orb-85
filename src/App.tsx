@@ -30,22 +30,7 @@ function AppContent() {
 }
 
 function App() {
-  const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    // Ensure React is fully mounted and context is established
-    const timer = setTimeout(() => {
-      setIsReady(true);
-    }, 200);
-
-    return () => clearTimeout(timer);
-  }, []);
-
   // Show minimal loading screen until React context is ready
-  if (!isReady) {
-    return <div className="fixed inset-0 bg-black"></div>;
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <AppContent />
