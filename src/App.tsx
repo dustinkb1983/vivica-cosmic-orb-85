@@ -47,18 +47,8 @@ function AppContent() {
 }
 
 function App() {
-  const [isAppReady, setIsAppReady] = useState(false);
-
-  useEffect(() => {
-    // Additional delay to ensure React context is fully established
-    const timer = setTimeout(() => {
-      setIsAppReady(true);
-    }, 50);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (!isAppReady) {
+  // Simple check without hooks to ensure DOM is ready
+  if (typeof window === 'undefined' || !document.getElementById('root')) {
     return <div className="fixed inset-0 bg-black flex items-center justify-center">
       <div className="text-white">Initializing...</div>
     </div>;
