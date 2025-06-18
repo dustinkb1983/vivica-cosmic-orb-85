@@ -15,20 +15,21 @@ function App() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // Ensure React is fully initialized before showing content
-    setIsReady(true);
-  }, []);
+    // Small delay to ensure React is fully initialized
+    const timer = setTimeout(() => {
+      setIsReady(true);
+    }, 100);
 
-  // Don't render anything until React is ready
-  if (!isReady) {
-    return null;
-  }
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <div className="min-h-screen">
-          {showSplash ? (
+          {!isReady ? (
+            <div className="fixed inset-0 bg-black"></div>
+          ) : showSplash ? (
             <SplashScreen onComplete={() => setShowSplash(false)} />
           ) : (
             <BrowserRouter>
