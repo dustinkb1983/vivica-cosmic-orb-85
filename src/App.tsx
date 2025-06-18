@@ -1,5 +1,4 @@
 
-
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -11,20 +10,39 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-function App() {
+function AppContent() {
   const [showSplash, setShowSplash] = useState(true);
+
+  return (
+    <div className="min-h-screen">
+      {showSplash ? (
+        <SplashScreen onComplete={() => setShowSplash(false)} />
+      ) : (
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      )}
+      <Toaster />
+    </div>
+  );
+}
+
+function App() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // Ensure React is fully mounted before initializing providers
+    // Ensure React is fully mounted and context is established
     const timer = setTimeout(() => {
       setIsReady(true);
-    }, 50);
+    }, 100);
 
     return () => clearTimeout(timer);
   }, []);
 
-  // Show loading screen until React is ready
+  // Show minimal loading screen until React context is ready
   if (!isReady) {
     return <div className="fixed inset-0 bg-black"></div>;
   }
@@ -32,23 +50,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider delayDuration={0}>
-        <div className="min-h-screen">
-          {showSplash ? (
-            <SplashScreen onComplete={() => setShowSplash(false)} />
-          ) : (
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          )}
-          <Toaster />
-        </div>
+        <AppContent />
       </TooltipProvider>
     </QueryClientProvider>
   );
 }
 
 export default App;
-
