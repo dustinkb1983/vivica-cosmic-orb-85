@@ -37,51 +37,25 @@
         touch-action: manipulation;
       }
       
-      /* Loading fallback - minimal */
-      #loading {
-        position: fixed;
-        inset: 0;
+      /* Minimal fallback styling */
+      body {
+        margin: 0;
+        padding: 0;
         background: #000000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
         font-family: system-ui, -apple-system, sans-serif;
-        z-index: 9999;
-        opacity: 1;
-        transition: opacity 0.5s ease-out;
       }
       
-      .loading-text {
-        font-size: 24px;
-        font-weight: bold;
-        letter-spacing: 0.3em;
-        color: white;
-        opacity: 0.8;
+      #root {
+        min-height: 100vh;
       }
     </style>
   </head>
 
   <body>
-    <div id="loading">
-      <div class="loading-text">V I V I C A</div>
-    </div>
-    
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     
     <script>
-      // Hide loading screen when React app loads
-      window.addEventListener('load', () => {
-        setTimeout(() => {
-          const loading = document.getElementById('loading');
-          if (loading) {
-            loading.style.opacity = '0';
-            setTimeout(() => loading.remove(), 500);
-          }
-        }, 1000);
-      });
-      
       // Prevent context menu
       document.addEventListener('contextmenu', (e) => e.preventDefault());
       
