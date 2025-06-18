@@ -11,6 +11,22 @@ const queryClient = new QueryClient();
 
 function AppContent() {
   const [showSplash, setShowSplash] = useState(true);
+  const [isReactReady, setIsReactReady] = useState(false);
+
+  useEffect(() => {
+    // Ensure React is fully initialized before rendering components with hooks
+    const timer = setTimeout(() => {
+      setIsReactReady(true);
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!isReactReady) {
+    return <div className="fixed inset-0 bg-black flex items-center justify-center">
+      <div className="text-white">Loading...</div>
+    </div>;
+  }
 
   return (
     <div className="min-h-screen">
@@ -30,7 +46,6 @@ function AppContent() {
 }
 
 function App() {
-  // Show minimal loading screen until React context is ready
   return (
     <QueryClientProvider client={queryClient}>
       <AppContent />
