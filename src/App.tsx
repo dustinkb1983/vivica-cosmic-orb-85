@@ -10,7 +10,7 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-function AppContent() {
+function App() {
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
@@ -27,23 +27,17 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-      <Toaster />
-    </div>
-  );
-}
-
-function App() {
-  return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AppContent />
+        <div className="min-h-screen">
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+          <Toaster />
+        </div>
       </TooltipProvider>
     </QueryClientProvider>
   );
