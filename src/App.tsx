@@ -23,7 +23,11 @@ function App() {
   }, []);
 
   if (showSplash) {
-    return <SplashScreen onComplete={() => setShowSplash(false)} />;
+    return (
+      <QueryClientProvider client={queryClient}>
+        <SplashScreen onComplete={() => setShowSplash(false)} />
+      </QueryClientProvider>
+    );
   }
 
   return (
