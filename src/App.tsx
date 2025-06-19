@@ -27,24 +27,24 @@ function AppContent() {
   }
 
   return (
-    <TooltipProvider>
-      <div className="min-h-screen">
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-        <Toaster />
-      </div>
-    </TooltipProvider>
+    <div className="min-h-screen">
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+      <Toaster />
+    </div>
   );
 }
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppContent />
+      <TooltipProvider>
+        <AppContent />
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }
