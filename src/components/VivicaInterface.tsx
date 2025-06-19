@@ -22,7 +22,6 @@ export const VivicaInterface = () => {
   const [isMuted, setIsMuted] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isProcessingRef = useRef(false);
-  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const { generateResponse } = useOpenRouter();
   const { 
@@ -81,12 +80,6 @@ export const VivicaInterface = () => {
       console.error('Voice recognition error:', error);
       isProcessingRef.current = false;
       
-      // Clear any silence timeout
-      if (silenceTimeoutRef.current) {
-        clearTimeout(silenceTimeoutRef.current);
-        silenceTimeoutRef.current = null;
-      }
-      
       if (typeof error === 'string' && error.includes('permission')) {
         toast.error('Microphone permission required. Please allow microphone access.');
         setState('idle');
@@ -100,7 +93,7 @@ export const VivicaInterface = () => {
         toast.error(`Voice error: ${error}`);
       }
       
-      if (isEnabled) {
+      if (isEnabled && !isProcessingRef.current) {
         setState('listening');
         setTimeout(() => {
           startListening();
@@ -109,7 +102,7 @@ export const VivicaInterface = () => {
         setState('idle');
       }
     },
-    speechTimeout: 2000,
+    speechTimeout: 3000, // Increased for better accuracy
     hardTimeout: 25000
   });
 
@@ -124,14 +117,8 @@ export const VivicaInterface = () => {
     console.log('Processing voice input:', text);
     isProcessingRef.current = true;
     setState('processing');
-    stopListening();
+    stopListening(); // Stop listening immediately
     resetTranscript();
-    
-    // Clear silence timeout
-    if (silenceTimeoutRef.current) {
-      clearTimeout(silenceTimeoutRef.current);
-      silenceTimeoutRef.current = null;
-    }
     
     // Add user message to history
     addMessage('user', text);
@@ -329,50 +316,10 @@ export const VivicaInterface = () => {
     };
   }, [handleSpaceBar, handleTouchStart]);
 
-  // Auto-hide panels on mobile after interaction
-  // useEffect(() => {
-  //   if ((showSettings || showHistory) && window.innerWidth <= 768) {
-  //     const timer = setTimeout(() => {
-  //       setShowSettings(false);
-  //       setShowHistory(false);
-  //     }, 15000); // Increased to 15s for better usability
-  //     return () => clearTimeout(timer);
-  //   }
-  // }, [showSettings, showHistory]);
-
-  // Monitor transcript changes to detect end of speech
-  useEffect(() => {
-    if (transcript && isListening && !isProcessingRef.current) {
-      // Clear existing timeout
-      if (silenceTimeoutRef.current) {
-        clearTimeout(silenceTimeoutRef.current);
-      }
-      
-      // Set new timeout for silence detection
-      silenceTimeoutRef.current = setTimeout(() => {
-        if (transcript.trim().length > 2 && !isProcessingRef.current) {
-          console.log('Silence detected, processing transcript:', transcript);
-          handleVoiceInput(transcript);
-        }
-      }, 2000); // 2 seconds of silence
-    }
-    
-    return () => {
-      if (silenceTimeoutRef.current) {
-        clearTimeout(silenceTimeoutRef.current);
-        silenceTimeoutRef.current = null;
-      }
-    };
-  }, [transcript, isListening]);
-
   // Clean up processing state when component unmounts
   useEffect(() => {
     return () => {
       isProcessingRef.current = false;
-      if (silenceTimeoutRef.current) {
-        clearTimeout(silenceTimeoutRef.current);
-        silenceTimeoutRef.current = null;
-      }
     };
   }, []);
 
