@@ -22,24 +22,20 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  if (showSplash) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <SplashScreen onComplete={() => setShowSplash(false)} />
-      </QueryClientProvider>
-    );
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <div className="min-h-screen">
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+          {showSplash ? (
+            <SplashScreen onComplete={() => setShowSplash(false)} />
+          ) : (
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          )}
           <Toaster />
         </div>
       </TooltipProvider>
