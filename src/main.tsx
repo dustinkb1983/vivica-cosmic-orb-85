@@ -39,7 +39,7 @@ const initializeApp = () => {
 
   // Create React root and render app
   const root = createRoot(rootElement);
-  root.render(React.createElement(App));
+  root.render(<App />);
 };
 
 // Initialize when DOM is ready
