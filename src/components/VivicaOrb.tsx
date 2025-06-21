@@ -25,10 +25,10 @@ export const VivicaOrb: React.FC<VivicaOrbProps> = ({ state, audioLevel, canvasR
 
   const getStateColor = (state: string) => {
     switch (state) {
-      case 'listening': return { r: 64, g: 224, b: 192 }; // cyan-green
-      case 'processing': return { r: 255, g: 193, b: 7 }; // golden yellow
-      case 'speaking': return { r: 255, g: 107, b: 107 }; // coral-red
-      default: return { r: 147, g: 197, b: 253 }; // soft blue
+      case 'listening': return { r: 144, g: 72, b: 248 }; // #9048F8 - Bluish Purple
+      case 'processing': return { r: 232, g: 48, b: 232 }; // #E830E8 - Fuchsia
+      case 'speaking': return { r: 128, g: 56, b: 240 }; // #8038F0 - Bluish Purple
+      default: return { r: 88, g: 0, b: 96 }; // #580060 - Plum Purple
     }
   };
 

@@ -1,11 +1,12 @@
 
-const CACHE_NAME = 'vivica-v2';
+const CACHE_NAME = 'vivica-v3';
 const urlsToCache = [
   '/',
   '/static/js/bundle.js',
   '/static/css/main.css',
   '/manifest.json',
-  '/lovable-uploads/330a6051-8d5c-469e-9b09-82166212092e.png'
+  '/lovable-uploads/330a6051-8d5c-469e-9b09-82166212092e.png',
+  '/lovable-uploads/c5c74797-b25e-4549-a01a-3dbc359deb30.png'
 ];
 
 // Install event - cache resources
@@ -15,11 +16,16 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Caching app shell');
-        return cache.addAll(urlsToCache);
+        return cache.addAll(urlsToCache.map(url => {
+          return new Request(url, { cache: 'reload' });
+        }));
       })
       .then(() => {
-        // Skip waiting to activate new service worker immediately
+        console.log('Service Worker installed successfully');
         return self.skipWaiting();
+      })
+      .catch((error) => {
+        console.error('Service Worker installation failed:', error);
       })
   );
 });
@@ -38,7 +44,7 @@ self.addEventListener('activate', (event) => {
         })
       );
     }).then(() => {
-      // Take control of all clients immediately
+      console.log('Service Worker activated successfully');
       return self.clients.claim();
     })
   );
@@ -46,6 +52,11 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
+  // Skip cross-origin requests
+  if (!event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -53,6 +64,7 @@ self.addEventListener('fetch', (event) => {
         if (response) {
           return response;
         }
+        
         return fetch(event.request).then((response) => {
           // Don't cache non-successful responses
           if (!response || response.status !== 200 || response.type !== 'basic') {

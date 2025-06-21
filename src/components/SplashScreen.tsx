@@ -37,11 +37,20 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
           isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
         }`}
       >
-        <div className="w-24 h-24 sm:w-32 sm:h-32 mx-auto mb-6 sm:mb-8 rounded-full bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 animate-pulse shadow-2xl shadow-blue-500/50"></div>
+        <div className="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-6 sm:mb-8 relative">
+          <img 
+            src="/lovable-uploads/c5c74797-b25e-4549-a01a-3dbc359deb30.png" 
+            alt="VIVICA Logo" 
+            className="w-full h-full object-contain animate-pulse"
+            style={{
+              filter: 'drop-shadow(0 0 20px #9048F8) drop-shadow(0 0 40px #E830E8)',
+            }}
+          />
+        </div>
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-[0.3em] text-white mb-2">
           V I V I C A
         </h1>
-        <p className="text-gray-400 text-sm sm:text-base">AI Voice Assistant</p>
+        <p className="text-purple-300 text-sm sm:text-base">AI Voice Assistant</p>
       </div>
     </div>
   );
