@@ -1,10 +1,15 @@
-
 import React, { useEffect, useRef } from 'react';
 
 interface VivicaOrbProps {
   state: 'idle' | 'listening' | 'processing' | 'speaking';
   audioLevel: number;
   canvasRef: React.RefObject<HTMLCanvasElement>;
+  orbColors?: {
+    idle: string;
+    listening: string;
+    processing: string;
+    speaking: string;
+  };
 }
 
 interface Particle {
@@ -18,17 +23,37 @@ interface Particle {
   opacity: number;
 }
 
-export const VivicaOrb: React.FC<VivicaOrbProps> = ({ state, audioLevel, canvasRef }) => {
+export const VivicaOrb: React.FC<VivicaOrbProps> = ({ state, audioLevel, canvasRef, orbColors }) => {
   const animationRef = useRef<number>();
   const particlesRef = useRef<Particle[]>([]);
   const timeRef = useRef(0);
 
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 88, g: 0, b: 96 }; // fallback to default plum purple
+  };
+
   const getStateColor = (state: string) => {
+    if (!orbColors) {
+      // Default colors if no profile colors provided
+      switch (state) {
+        case 'listening': return { r: 144, g: 72, b: 248 }; // #9048F8
+        case 'processing': return { r: 232, g: 48, b: 232 }; // #E830E8
+        case 'speaking': return { r: 128, g: 56, b: 240 }; // #8038F0
+        default: return { r: 88, g: 0, b: 96 }; // #580060
+      }
+    }
+
+    // Use profile colors
     switch (state) {
-      case 'listening': return { r: 144, g: 72, b: 248 }; // #9048F8 - Bluish Purple (active listening)
-      case 'processing': return { r: 232, g: 48, b: 232 }; // #E830E8 - Fuchsia (thinking)
-      case 'speaking': return { r: 128, g: 56, b: 240 }; // #8038F0 - Bluish Purple (speaking)
-      default: return { r: 88, g: 0, b: 96 }; // #580060 - Plum Purple (idle/ambient)
+      case 'listening': return hexToRgb(orbColors.listening);
+      case 'processing': return hexToRgb(orbColors.processing);
+      case 'speaking': return hexToRgb(orbColors.speaking);
+      default: return hexToRgb(orbColors.idle);
     }
   };
 
@@ -236,7 +261,7 @@ export const VivicaOrb: React.FC<VivicaOrbProps> = ({ state, audioLevel, canvasR
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [state, audioLevel]);
+  }, [state, audioLevel, orbColors]);
 
   return null;
 };
