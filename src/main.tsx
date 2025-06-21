@@ -1,8 +1,9 @@
 
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
-import { registerServiceWorker, initializePWAPrompt } from './lib/pwa'
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
+import { registerServiceWorker, initializePWAPrompt } from './lib/pwa';
 
 // Wait for DOM to be ready
 const initializeApp = () => {
@@ -38,7 +39,7 @@ const initializeApp = () => {
 
   // Create React root and render app
   const root = createRoot(rootElement);
-  root.render(<App />);
+  root.render(React.createElement(App));
 };
 
 // Initialize when DOM is ready
