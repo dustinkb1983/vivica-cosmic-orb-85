@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Settings } from 'lucide-react';
 import { GlassmorphicSettingsModal } from './GlassmorphicSettingsModal';
