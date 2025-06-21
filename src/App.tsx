@@ -13,21 +13,17 @@ const queryClient = new QueryClient();
 function App() {
   const [showSplash, setShowSplash] = useState(true);
 
-  useEffect(() => {
-    // Simple splash screen timer
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
+  // Remove the conflicting timer - let SplashScreen handle its own timing
+  const handleSplashComplete = () => {
+    setShowSplash(false);
+  };
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <div className="min-h-screen">
           {showSplash ? (
-            <SplashScreen onComplete={() => setShowSplash(false)} />
+            <SplashScreen onComplete={handleSplashComplete} />
           ) : (
             <BrowserRouter>
               <Routes>
