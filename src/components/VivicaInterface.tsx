@@ -1,7 +1,7 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Settings } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { SettingsPanel } from './SettingsPanel';
+import { GlassmorphicSettingsModal } from './GlassmorphicSettingsModal';
 import { ConversationHistoryPanel } from './ConversationHistoryPanel';
 import { VivicaOrb } from './VivicaOrb';
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
@@ -365,8 +365,8 @@ export const VivicaInterface = () => {
         </div>
       </div>
 
-      {/* Settings Panel */}
-      <SettingsPanel 
+      {/* Glassmorphic Settings Modal */}
+      <GlassmorphicSettingsModal 
         isOpen={showSettings} 
         onClose={() => setShowSettings(false)}
         onOpenHistory={() => {

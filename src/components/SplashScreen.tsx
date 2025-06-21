@@ -12,16 +12,16 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
     // Fade in
     const fadeInTimer = setTimeout(() => {
       setIsVisible(true);
-    }, 200);
+    }, 100);
 
     // Fade out and complete
     const fadeOutTimer = setTimeout(() => {
       setIsVisible(false);
-    }, 2500);
+    }, 1800);
 
     const completeTimer = setTimeout(() => {
       onComplete();
-    }, 3000);
+    }, 2200);
 
     return () => {
       clearTimeout(fadeInTimer);
@@ -37,20 +37,19 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
           isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
         }`}
       >
-        <div className="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-6 sm:mb-8 relative">
+        <div className="w-24 h-24 sm:w-32 sm:h-32 mx-auto mb-4 relative">
           <img 
             src="/lovable-uploads/c5c74797-b25e-4549-a01a-3dbc359deb30.png" 
             alt="VIVICA Logo" 
-            className="w-full h-full object-contain animate-pulse"
+            className="w-full h-full object-contain"
             style={{
-              filter: 'drop-shadow(0 0 20px #9048F8) drop-shadow(0 0 40px #E830E8)',
+              filter: 'drop-shadow(0 0 15px #9048F8) drop-shadow(0 0 30px #E830E8)',
             }}
           />
         </div>
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-[0.3em] text-white mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-[0.3em] text-white">
           V I V I C A
         </h1>
-        <p className="text-purple-300 text-sm sm:text-base">AI Voice Assistant</p>
       </div>
     </div>
   );
