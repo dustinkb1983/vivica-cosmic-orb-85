@@ -7,6 +7,7 @@ import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useOpenRouter } from '@/hooks/useOpenRouter';
 import { useConversationHistory } from '@/hooks/useConversationHistory';
+import { useProfiles } from '@/hooks/useProfiles';
 import { toast } from 'sonner';
 import { useIntentRecognition } from '@/hooks/useIntentRecognition';
 import { IntentHandlers } from '@/services/intentHandlers';
@@ -25,6 +26,7 @@ export const VivicaInterface = () => {
   const holdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const { requestWakeLock, releaseWakeLock, isSupported: wakeLockSupported } = useWakeLock();
+  const { activeProfile } = useProfiles();
   
   const { generateResponse } = useOpenRouter();
   const { 
@@ -346,13 +348,14 @@ export const VivicaInterface = () => {
           state={state} 
           audioLevel={isListening ? 0.5 : 0} 
           canvasRef={canvasRef}
+          orbColors={activeProfile?.orbColors}
         />
       </div>
 
-      {/* VIVICA Title - Responsive sizing */}
+      {/* Active Profile Title - Responsive sizing */}
       <div className="absolute bottom-12 sm:bottom-16 left-1/2 transform -translate-x-1/2 pointer-events-none px-4 max-w-full">
         <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold tracking-[0.15em] sm:tracking-[0.2em] md:tracking-[0.25em] text-white/90 drop-shadow-2xl text-center">
-          V I V I C A
+          {activeProfile?.name || 'V I V I C A'}
         </h1>
         <div className="text-center text-white/60 mt-1 sm:mt-2 text-xs sm:text-sm px-2">
           {getStatusText()}
@@ -401,7 +404,8 @@ export const VivicaInterface = () => {
           Permission: {hasPermission === null ? 'Unknown' : hasPermission ? 'Granted' : 'Denied'}<br/>
           WakeLock: {wakeLockSupported ? 'Supported' : 'Not supported'}<br/>
           Messages: {messages.length}<br/>
-          Transcript: {transcript ? `"${transcript}"` : 'None'}
+          Transcript: {transcript ? `"${transcript}"` : 'None'}<br/>
+          Active Profile: {activeProfile?.name || 'None'}
         </div>
       )}
     </div>
