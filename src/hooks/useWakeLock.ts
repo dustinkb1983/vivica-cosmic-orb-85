@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 export const useWakeLock = () => {
   const [isActive, setIsActive] = useState(false);
@@ -55,7 +55,7 @@ export const useWakeLock = () => {
   }, [isActive, requestWakeLock]);
 
   // Set up visibility change listener
-  React.useEffect(() => {
+  useEffect(() => {
     if (isSupported) {
       document.addEventListener('visibilitychange', handleVisibilityChange);
       return () => {
@@ -65,7 +65,7 @@ export const useWakeLock = () => {
   }, [handleVisibilityChange, isSupported]);
 
   // Cleanup on unmount
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       releaseWakeLock();
     };
