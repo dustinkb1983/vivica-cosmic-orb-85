@@ -23,7 +23,6 @@ export const VivicaInterface = () => {
   const [isHolding, setIsHolding] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isProcessingRef = useRef(false);
-  const holdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const { requestWakeLock, releaseWakeLock, isSupported: wakeLockSupported } = useWakeLock();
   const { activeProfile } = useProfiles();
@@ -87,7 +86,7 @@ export const VivicaInterface = () => {
       setState('idle');
       releaseWakeLock();
     },
-    speechTimeout: 1000,
+    speechTimeout: 2000,
     hardTimeout: 15000,
     continuous: false
   });
@@ -103,7 +102,6 @@ export const VivicaInterface = () => {
     console.log('Processing voice input:', text);
     isProcessingRef.current = true;
     setState('processing');
-    stopListening();
     resetTranscript();
     
     // Add user message to history
@@ -219,17 +217,22 @@ export const VivicaInterface = () => {
       navigator.vibrate(30);
     }
     
-    console.log('Ending hold-to-talk');
+    console.log('Ending hold-to-talk - letting recognition complete naturally');
     setIsHolding(false);
-    stopListening();
     
-    // If we have transcript, it will be processed automatically via onResult
-    // Otherwise, return to idle
-    if (!transcript.trim()) {
-      setState('idle');
-      releaseWakeLock();
-    }
-  }, [isHolding, stopListening, transcript, releaseWakeLock]);
+    // DON'T call stopListening() here - let the voice recognition complete naturally
+    // The onResult callback will be triggered automatically when speech is detected
+    // If no speech is detected, the recognition will timeout naturally
+    
+    // Only return to idle if no transcript was captured
+    setTimeout(() => {
+      if (!transcript.trim() && !isProcessingRef.current) {
+        console.log('No speech detected, returning to idle');
+        setState('idle');
+        releaseWakeLock();
+      }
+    }, 500);
+  }, [isHolding, transcript]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
@@ -278,9 +281,6 @@ export const VivicaInterface = () => {
     return () => {
       isProcessingRef.current = false;
       releaseWakeLock();
-      if (holdTimeoutRef.current) {
-        clearTimeout(holdTimeoutRef.current);
-      }
     };
   }, [releaseWakeLock]);
 
