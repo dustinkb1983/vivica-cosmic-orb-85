@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Settings, X } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SettingsPanel } from './SettingsPanel';
 import { ConversationHistoryPanel } from './ConversationHistoryPanel';
@@ -11,6 +11,7 @@ import { useConversationHistory } from '@/hooks/useConversationHistory';
 import { toast } from 'sonner';
 import { useIntentRecognition } from '@/hooks/useIntentRecognition';
 import { IntentHandlers } from '@/services/intentHandlers';
+import { useWakeLock } from '@/hooks/useWakeLock';
 
 type VivicaState = 'idle' | 'listening' | 'processing' | 'speaking';
 
@@ -18,10 +19,13 @@ export const VivicaInterface = () => {
   const [state, setState] = useState<VivicaState>('idle');
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [isEnabled, setIsEnabled] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isHolding, setIsHolding] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isProcessingRef = useRef(false);
+  const holdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const { requestWakeLock, releaseWakeLock, isSupported: wakeLockSupported } = useWakeLock();
   
   const { generateResponse } = useOpenRouter();
   const { 
@@ -37,31 +41,19 @@ export const VivicaInterface = () => {
     onStart: () => {
       console.log('TTS started');
       setState('speaking');
+      requestWakeLock();
     },
     onEnd: () => {
-      console.log('TTS ended, returning to listening mode');
+      console.log('TTS ended, returning to idle');
       isProcessingRef.current = false;
-      if (isEnabled) {
-        setState('listening');
-        setTimeout(() => {
-          console.log('Restarting listening after speech ended');
-          startListening();
-        }, 1000);
-      } else {
-        setState('idle');
-      }
+      setState('idle');
+      releaseWakeLock();
     },
     onError: (error) => {
       console.error('TTS error:', error);
       isProcessingRef.current = false;
-      if (isEnabled) {
-        setState('listening');
-        setTimeout(() => {
-          startListening();
-        }, 1000);
-      } else {
-        setState('idle');
-      }
+      setState('idle');
+      releaseWakeLock();
     }
   });
   
@@ -83,41 +75,34 @@ export const VivicaInterface = () => {
       if (typeof error === 'string' && error.includes('permission')) {
         toast.error('Microphone permission required. Please allow microphone access.');
         setState('idle');
-        setIsEnabled(false);
+        releaseWakeLock();
         return;
       }
       
-      if (error === 'timeout') {
-        toast.info('Voice recognition timed out. Restarting...');
-      } else if (error !== 'no-speech' && error !== 'aborted') {
+      if (error !== 'no-speech' && error !== 'aborted') {
         toast.error(`Voice error: ${error}`);
       }
       
-      if (isEnabled && !isProcessingRef.current) {
-        setState('listening');
-        setTimeout(() => {
-          startListening();
-        }, 2000);
-      } else {
-        setState('idle');
-      }
+      setState('idle');
+      releaseWakeLock();
     },
-    speechTimeout: 3000, // Increased for better accuracy
-    hardTimeout: 25000
+    speechTimeout: 1000,
+    hardTimeout: 15000,
+    continuous: false
   });
 
   const { detectIntent } = useIntentRecognition();
   
   async function handleVoiceInput(text: string) {
-    if (!text.trim() || isProcessingRef.current || !isEnabled) {
-      console.log('Ignoring voice input:', { text: text.trim(), isProcessing: isProcessingRef.current, isEnabled });
+    if (!text.trim() || isProcessingRef.current) {
+      console.log('Ignoring voice input:', { text: text.trim(), isProcessing: isProcessingRef.current });
       return;
     }
     
     console.log('Processing voice input:', text);
     isProcessingRef.current = true;
     setState('processing');
-    stopListening(); // Stop listening immediately
+    stopListening();
     resetTranscript();
     
     // Add user message to history
@@ -159,7 +144,7 @@ export const VivicaInterface = () => {
         response = await generateResponse(text, contextMessages);
       }
       
-      if (response && isEnabled) {
+      if (response) {
         console.log('AI response received:', response);
         // Add AI response to history
         addMessage('assistant', response);
@@ -167,174 +152,148 @@ export const VivicaInterface = () => {
         if (!isMuted) {
           console.log('Speaking AI response');
           speak(response);
-          // TTS onEnd callback will handle returning to listening
+          // TTS onEnd callback will handle returning to idle
         } else {
-          console.log('Muted mode - returning to listening without speaking');
+          console.log('Muted mode - returning to idle without speaking');
           isProcessingRef.current = false;
-          setState('listening');
-          setTimeout(() => {
-            startListening();
-          }, 500);
+          setState('idle');
+          releaseWakeLock();
         }
       } else {
-        console.log('No AI response or disabled, returning to listening');
+        console.log('No AI response, returning to idle');
         isProcessingRef.current = false;
-        if (isEnabled) {
-          setState('listening');
-          setTimeout(() => {
-            startListening();
-          }, 500);
-        } else {
-          setState('idle');
-        }
+        setState('idle');
+        releaseWakeLock();
       }
     } catch (error) {
       console.error('AI response error:', error);
       toast.error('Failed to generate response');
       isProcessingRef.current = false;
-      if (isEnabled) {
-        setState('listening');
-        setTimeout(() => {
-          startListening();
-        }, 1000);
-      } else {
-        setState('idle');
-      }
+      setState('idle');
+      releaseWakeLock();
     }
   }
 
-  const toggleVivica = useCallback(async () => {
-    if (!isEnabled) {
-      // Always request permission explicitly when user activates
-      if (hasPermission !== true) {
-        console.log('Requesting microphone permission...');
-        const granted = await requestMicrophonePermission();
-        if (!granted) {
-          toast.error('Microphone permission is required for VIVICA to work.');
-          return;
-        }
-      }
-      
-      console.log('Activating VIVICA');
-      isProcessingRef.current = false;
-      setState('listening');
-      setIsEnabled(true);
-      setTimeout(() => {
-        startListening();
-      }, 500);
-      toast.success('VIVICA activated');
-    } else {
-      console.log('Deactivating VIVICA');
-      isProcessingRef.current = false;
-      setState('idle');
-      setIsEnabled(false);
-      forceStop();
-      stopSpeaking();
-      resetTranscript();
-      toast.info('VIVICA deactivated');
-    }
-  }, [isEnabled, hasPermission, requestMicrophonePermission, startListening, forceStop, stopSpeaking, resetTranscript]);
-
-  const handleSpaceBar = useCallback((e: KeyboardEvent) => {
-    if (e.code === 'Space' && e.type === 'keydown') {
-      e.preventDefault();
-      if (e.shiftKey) {
-        setShowSettings(!showSettings);
-      } else {
-        toggleVivica();
-      }
-    }
-  }, [showSettings, toggleVivica]);
-
-  const handleTouchStart = useCallback((e: TouchEvent) => {
-    // Don't handle touch events if settings or history panels are open
-    if (showSettings || showHistory) {
-      return;
+  const handleHoldStart = useCallback(async () => {
+    if (isHolding || showSettings || showHistory) return;
+    
+    // Haptic feedback on press
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50);
     }
     
-    // Check if touch is inside a panel
-    const target = e.target as Element;
-    if (target.closest('[data-settings-panel]') || target.closest('[data-history-panel]')) {
-      return;
-    }
-    
-    if (e.touches.length === 1) {
-      const touchDuration = setTimeout(() => {
-        if ('vibrate' in navigator) {
-          navigator.vibrate(50);
-        }
-        setShowSettings(true);
-      }, 500);
-      
-      const cleanup = () => {
-        clearTimeout(touchDuration);
-        document.removeEventListener('touchend', cleanup);
-        document.removeEventListener('touchmove', cleanup);
-      };
-      
-      document.addEventListener('touchend', cleanup);
-      document.addEventListener('touchmove', cleanup);
-    }
-  }, [showSettings, showHistory]);
-
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    // Don't handle clicks if panels are open
-    if (showSettings || showHistory) {
-      return;
-    }
-    
-    // Check if click is inside a panel
-    const target = e.target as Element;
-    if (target.closest('[data-settings-panel]') || target.closest('[data-history-panel]')) {
-      return;
-    }
-    
+    // If speaking, interrupt and start listening
     if (isSpeaking) {
-      console.log('Stopping speech and returning to listening');
+      console.log('Interrupting speech to listen');
       stopSpeaking();
       isProcessingRef.current = false;
-      if (isEnabled) {
-        setState('listening');
-        setTimeout(() => {
-          startListening();
-        }, 500);
-      } else {
-        setState('idle');
-      }
-    } else {
-      toggleVivica();
     }
-  }, [isSpeaking, showSettings, showHistory, toggleVivica, stopSpeaking, startListening, isEnabled]);
+    
+    // Always request permission explicitly when user wants to talk
+    if (hasPermission !== true) {
+      console.log('Requesting microphone permission...');
+      const granted = await requestMicrophonePermission();
+      if (!granted) {
+        toast.error('Microphone permission is required for VIVICA to work.');
+        return;
+      }
+    }
+    
+    console.log('Starting hold-to-talk');
+    setIsHolding(true);
+    setState('listening');
+    requestWakeLock();
+    
+    // Small delay to ensure state is set before starting
+    setTimeout(() => {
+      startListening();
+    }, 100);
+  }, [isHolding, showSettings, showHistory, isSpeaking, hasPermission, requestMicrophonePermission, stopSpeaking, startListening, requestWakeLock]);
+
+  const handleHoldEnd = useCallback(() => {
+    if (!isHolding) return;
+    
+    // Haptic feedback on release
+    if ('vibrate' in navigator) {
+      navigator.vibrate(30);
+    }
+    
+    console.log('Ending hold-to-talk');
+    setIsHolding(false);
+    stopListening();
+    
+    // If we have transcript, it will be processed automatically via onResult
+    // Otherwise, return to idle
+    if (!transcript.trim()) {
+      setState('idle');
+      releaseWakeLock();
+    }
+  }, [isHolding, stopListening, transcript, releaseWakeLock]);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    handleHoldStart();
+  }, [handleHoldStart]);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    handleHoldEnd();
+  }, [handleHoldEnd]);
+
+  const handlePointerLeave = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    if (isHolding) {
+      handleHoldEnd();
+    }
+  }, [isHolding, handleHoldEnd]);
+
+  // Handle keyboard space bar for desktop
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.code === 'Space' && !e.repeat && !showSettings && !showHistory) {
+      e.preventDefault();
+      handleHoldStart();
+    }
+  }, [handleHoldStart, showSettings, showHistory]);
+
+  const handleKeyUp = useCallback((e: KeyboardEvent) => {
+    if (e.code === 'Space' && !showSettings && !showHistory) {
+      e.preventDefault();
+      handleHoldEnd();
+    }
+  }, [handleHoldEnd, showSettings, showHistory]);
 
   useEffect(() => {
-    document.addEventListener('keydown', handleSpaceBar);
-    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
     
     return () => {
-      document.removeEventListener('keydown', handleSpaceBar);
-      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
     };
-  }, [handleSpaceBar, handleTouchStart]);
+  }, [handleKeyDown, handleKeyUp]);
 
-  // Clean up processing state when component unmounts
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       isProcessingRef.current = false;
+      releaseWakeLock();
+      if (holdTimeoutRef.current) {
+        clearTimeout(holdTimeoutRef.current);
+      }
     };
-  }, []);
+  }, [releaseWakeLock]);
 
   const getStatusText = () => {
     if (hasPermission === false) {
-      return 'Tap to allow microphone access';
+      return 'Hold orb to allow microphone access';
     }
     
     switch (state) {
       case 'idle':
         return (
           <span className="block">
-            <span className="hidden sm:inline">Space or </span>
-            <span>tap to activate</span>
-            <span className="hidden sm:inline">, hold for settings</span>
+            <span className="hidden sm:inline">Hold space or </span>
+            <span>hold orb to talk</span>
           </span>
         );
       case 'listening':
@@ -349,7 +308,7 @@ export const VivicaInterface = () => {
           </span>
         );
       case 'processing':
-        return 'Processing...';
+        return 'Thinking...';
       case 'speaking':
         return 'Speaking...';
       default:
@@ -358,19 +317,35 @@ export const VivicaInterface = () => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black overflow-hidden select-none touch-none">
+    <div className="fixed inset-0 bg-black overflow-hidden select-none">
+      {/* Glassmorphic Settings Button */}
+      <button
+        onClick={() => setShowSettings(true)}
+        className="fixed top-6 right-6 z-10 p-3 rounded-2xl backdrop-blur-md bg-white/10 border border-white/20 shadow-2xl hover:bg-white/15 transition-all duration-300 hover:scale-105 active:scale-95"
+        style={{
+          boxShadow: '0 8px 32px rgba(144, 72, 248, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+        }}
+      >
+        <Settings className="w-5 h-5 text-white/80" />
+      </button>
+
       {/* Background Canvas */}
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 w-full h-full"
-        onClick={handleClick}
+        className="absolute inset-0 w-full h-full pointer-events-none"
       />
       
-      {/* Main Orb */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      {/* Main Orb - Interactive */}
+      <div 
+        className="absolute inset-0 flex items-center justify-center cursor-pointer touch-none"
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerLeave}
+        style={{ touchAction: 'none' }}
+      >
         <VivicaOrb 
           state={state} 
-          audioLevel={isListening ? 0.3 : 0} 
+          audioLevel={isListening ? 0.5 : 0} 
           canvasRef={canvasRef}
         />
       </div>
@@ -420,11 +395,12 @@ export const VivicaInterface = () => {
       {process.env.NODE_ENV === 'development' && (
         <div className="absolute top-4 left-4 text-white/50 text-xs font-mono">
           State: {state}<br/>
+          Holding: {isHolding ? 'Yes' : 'No'}<br/>
           Listening: {isListening ? 'Yes' : 'No'}<br/>
           Speaking: {isSpeaking ? 'Yes' : 'No'}<br/>
-          Enabled: {isEnabled ? 'Yes' : 'No'}<br/>
           Processing: {isProcessingRef.current ? 'Yes' : 'No'}<br/>
           Permission: {hasPermission === null ? 'Unknown' : hasPermission ? 'Granted' : 'Denied'}<br/>
+          WakeLock: {wakeLockSupported ? 'Supported' : 'Not supported'}<br/>
           Messages: {messages.length}<br/>
           Transcript: {transcript ? `"${transcript}"` : 'None'}
         </div>
