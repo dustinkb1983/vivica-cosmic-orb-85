@@ -4,7 +4,7 @@ import { X, Settings as SettingsIcon, MessageSquare, User, Key } from 'lucide-re
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { SettingsPanel } from './SettingsPanel';
+import { SettingsTabContent } from './SettingsTabContent';
 import { ProfileManagement } from './ProfileManagement';
 
 interface GlassmorphicSettingsModalProps {
@@ -44,12 +44,12 @@ export const GlassmorphicSettingsModal: React.FC<GlassmorphicSettingsModalProps>
       case 'profiles':
         return <ProfileManagement />;
       case 'settings':
-        return <SettingsPanel isMuted={isMuted} setIsMuted={setIsMuted} />;
+        return <SettingsTabContent isMuted={isMuted} setIsMuted={setIsMuted} />;
       case 'history':
         handleHistoryClick();
         return null;
       case 'keys':
-        return <SettingsPanel isMuted={isMuted} setIsMuted={setIsMuted} />;
+        return <SettingsTabContent isMuted={isMuted} setIsMuted={setIsMuted} />;
       default:
         return <ProfileManagement />;
     }
