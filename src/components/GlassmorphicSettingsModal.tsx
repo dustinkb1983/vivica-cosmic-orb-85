@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SettingsTabContent } from './SettingsTabContent';
 import { ProfileManagement } from './ProfileManagement';
+import { ConversationHistoryContent } from './ConversationHistoryContent';
 
 interface GlassmorphicSettingsModalProps {
   isOpen: boolean;
@@ -28,10 +29,6 @@ export const GlassmorphicSettingsModal: React.FC<GlassmorphicSettingsModalProps>
 
   if (!isOpen) return null;
 
-  const handleHistoryClick = () => {
-    onOpenHistory();
-  };
-
   const tabs = [
     { id: 'profiles' as const, label: 'Profiles', icon: User, description: 'Manage AI personas' },
     { id: 'settings' as const, label: 'Settings', icon: SettingsIcon, description: 'App preferences' },
@@ -46,8 +43,7 @@ export const GlassmorphicSettingsModal: React.FC<GlassmorphicSettingsModalProps>
       case 'settings':
         return <SettingsTabContent isMuted={isMuted} setIsMuted={setIsMuted} />;
       case 'history':
-        handleHistoryClick();
-        return null;
+        return <ConversationHistoryContent />;
       case 'keys':
         return <SettingsTabContent isMuted={isMuted} setIsMuted={setIsMuted} />;
       default:
