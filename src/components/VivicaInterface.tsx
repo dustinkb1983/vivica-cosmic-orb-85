@@ -1,7 +1,7 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Settings } from 'lucide-react';
 import { GlassmorphicSettingsModal } from './GlassmorphicSettingsModal';
-import { ConversationHistoryPanel } from './ConversationHistoryPanel';
 import { VivicaOrb } from './VivicaOrb';
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
@@ -18,11 +18,11 @@ type VivicaState = 'idle' | 'listening' | 'processing' | 'speaking';
 export const VivicaInterface = () => {
   const [state, setState] = useState<VivicaState>('idle');
   const [showSettings, setShowSettings] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isHolding, setIsHolding] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isProcessingRef = useRef(false);
+  const pendingTranscriptRef = useRef('');
   
   const { requestWakeLock, releaseWakeLock, isSupported: wakeLockSupported } = useWakeLock();
   const { activeProfile } = useProfiles();
@@ -94,22 +94,26 @@ export const VivicaInterface = () => {
   const { detectIntent } = useIntentRecognition();
   
   async function handleVoiceInput(text: string) {
-    if (!text.trim() || isProcessingRef.current) {
-      console.log('Ignoring voice input:', { text: text.trim(), isProcessing: isProcessingRef.current });
+    const trimmedText = text.trim();
+    console.log('handleVoiceInput called with:', trimmedText);
+    
+    if (!trimmedText || isProcessingRef.current) {
+      console.log('Ignoring voice input:', { text: trimmedText, isProcessing: isProcessingRef.current });
       return;
     }
     
-    console.log('Processing voice input:', text);
+    console.log('Processing voice input:', trimmedText);
     isProcessingRef.current = true;
     setState('processing');
     resetTranscript();
+    pendingTranscriptRef.current = '';
     
     // Add user message to history
-    addMessage('user', text);
+    addMessage('user', trimmedText);
     
     try {
       // Detect intent
-      const intent = detectIntent(text);
+      const intent = detectIntent(trimmedText);
       let response = '';
       
       if (intent !== 'general') {
@@ -122,16 +126,16 @@ export const VivicaInterface = () => {
           
           switch (intent) {
             case 'weather':
-              response = await handlers.handleWeather(text);
+              response = await handlers.handleWeather(trimmedText);
               break;
             case 'news':
               response = await handlers.handleNews();
               break;
             case 'traffic':
-              response = await handlers.handleTraffic(text);
+              response = await handlers.handleTraffic(trimmedText);
               break;
             case 'sports':
-              response = await handlers.handleSports(text);
+              response = await handlers.handleSports(trimmedText);
               break;
           }
         }
@@ -140,7 +144,7 @@ export const VivicaInterface = () => {
       // If no special intent response, use AI
       if (!response) {
         const contextMessages = getContextMessages(8);
-        response = await generateResponse(text, contextMessages);
+        response = await generateResponse(trimmedText, contextMessages);
       }
       
       if (response) {
@@ -174,7 +178,9 @@ export const VivicaInterface = () => {
   }
 
   const handleHoldStart = useCallback(async () => {
-    if (isHolding || showSettings || showHistory) return;
+    if (isHolding || showSettings) return;
+    
+    console.log('Hold start - checking state');
     
     // Haptic feedback on press
     if ('vibrate' in navigator) {
@@ -202,37 +208,44 @@ export const VivicaInterface = () => {
     setIsHolding(true);
     setState('listening');
     requestWakeLock();
+    pendingTranscriptRef.current = '';
     
     // Small delay to ensure state is set before starting
     setTimeout(() => {
       startListening();
     }, 100);
-  }, [isHolding, showSettings, showHistory, isSpeaking, hasPermission, requestMicrophonePermission, stopSpeaking, startListening, requestWakeLock]);
+  }, [isHolding, showSettings, isSpeaking, hasPermission, requestMicrophonePermission, stopSpeaking, startListening, requestWakeLock]);
 
   const handleHoldEnd = useCallback(() => {
     if (!isHolding) return;
+    
+    console.log('Hold end - stopping listening and processing transcript');
     
     // Haptic feedback on release
     if ('vibrate' in navigator) {
       navigator.vibrate(30);
     }
     
-    console.log('Ending hold-to-talk - letting recognition complete naturally');
     setIsHolding(false);
     
-    // DON'T call stopListening() here - let the voice recognition complete naturally
-    // The onResult callback will be triggered automatically when speech is detected
-    // If no speech is detected, the recognition will timeout naturally
+    // Stop listening immediately and get the current transcript
+    const currentTranscript = transcript.trim();
+    console.log('Current transcript on release:', currentTranscript);
     
-    // Only return to idle if no transcript was captured
-    setTimeout(() => {
-      if (!transcript.trim() && !isProcessingRef.current) {
-        console.log('No speech detected, returning to idle');
-        setState('idle');
-        releaseWakeLock();
-      }
-    }, 500);
-  }, [isHolding, transcript]);
+    // Force stop the voice recognition
+    stopListening();
+    
+    // If we have a transcript, process it immediately
+    if (currentTranscript) {
+      console.log('Processing transcript from hold end:', currentTranscript);
+      handleVoiceInput(currentTranscript);
+    } else {
+      // No transcript, return to idle
+      console.log('No transcript captured, returning to idle');
+      setState('idle');
+      releaseWakeLock();
+    }
+  }, [isHolding, transcript, stopListening, handleVoiceInput, releaseWakeLock]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
@@ -253,18 +266,18 @@ export const VivicaInterface = () => {
 
   // Handle keyboard space bar for desktop
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.code === 'Space' && !e.repeat && !showSettings && !showHistory) {
+    if (e.code === 'Space' && !e.repeat && !showSettings) {
       e.preventDefault();
       handleHoldStart();
     }
-  }, [handleHoldStart, showSettings, showHistory]);
+  }, [handleHoldStart, showSettings]);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
-    if (e.code === 'Space' && !showSettings && !showHistory) {
+    if (e.code === 'Space' && !showSettings) {
       e.preventDefault();
       handleHoldEnd();
     }
-  }, [handleHoldEnd, showSettings, showHistory]);
+  }, [handleHoldEnd, showSettings]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);
@@ -371,26 +384,9 @@ export const VivicaInterface = () => {
       <GlassmorphicSettingsModal 
         isOpen={showSettings} 
         onClose={() => setShowSettings(false)}
-        onOpenHistory={() => {
-          setShowSettings(false);
-          setShowHistory(true);
-        }}
+        onOpenHistory={() => {}}
         isMuted={isMuted}
         setIsMuted={setIsMuted}
-      />
-
-      {/* Conversation History Panel */}
-      <ConversationHistoryPanel
-        isOpen={showHistory}
-        onClose={() => setShowHistory(false)}
-        onBackToSettings={() => {
-          setShowHistory(false);
-          setShowSettings(true);
-        }}
-        messages={messages}
-        onEditMessage={editMessage}
-        onDeleteMessage={deleteMessage}
-        onClearHistory={clearHistory}
       />
 
       {/* Debug Info */}
