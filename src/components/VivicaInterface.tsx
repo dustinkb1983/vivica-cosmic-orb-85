@@ -384,7 +384,6 @@ export const VivicaInterface = () => {
       <GlassmorphicSettingsModal 
         isOpen={showSettings} 
         onClose={() => setShowSettings(false)}
-        onOpenHistory={() => {}}
         isMuted={isMuted}
         setIsMuted={setIsMuted}
       />

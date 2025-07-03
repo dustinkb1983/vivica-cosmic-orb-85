@@ -11,7 +11,6 @@ import { ConversationHistoryContent } from './ConversationHistoryContent';
 interface GlassmorphicSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onOpenHistory: () => void;
   isMuted: boolean;
   setIsMuted: (muted: boolean) => void;
 }
@@ -21,7 +20,6 @@ type SettingsTab = 'profiles' | 'settings' | 'history' | 'keys';
 export const GlassmorphicSettingsModal: React.FC<GlassmorphicSettingsModalProps> = ({
   isOpen,
   onClose,
-  onOpenHistory,
   isMuted,
   setIsMuted
 }) => {

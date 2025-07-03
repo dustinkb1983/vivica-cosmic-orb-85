@@ -86,7 +86,7 @@ export const useVoiceRecognition = ({
     console.log('Force stopping recognition');
     isActiveRef.current = false;
     isStartingRef.current = false;
-    setIsListening(false);
+    
     cleanupTimeouts();
     
     if (recognitionRef.current) {
@@ -98,9 +98,13 @@ export const useVoiceRecognition = ({
       }
     }
     
-    setTranscript('');
-    finalTranscriptRef.current = '';
-    lastTranscriptRef.current = '';
+    // Ensure state is updated after stopping
+    setTimeout(() => {
+      setIsListening(false);
+      setTranscript('');
+      finalTranscriptRef.current = '';
+      lastTranscriptRef.current = '';
+    }, 50);
   }, [cleanupTimeouts]);
 
   const scheduleRestart = useCallback(() => {
